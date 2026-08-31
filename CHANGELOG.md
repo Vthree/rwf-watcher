@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1 — 2026-08-31
+
+- TW kill copy uses 四王 (not 第4王). Last boss stays 尾王.
+
 ## 1.2.0 — 2026-08-31
 
 - Independent **Taiwan** feed: no hardcoded guilds. Notify only when TW Mythic overall N/8 increases (e.g. 3/8 → 4/8). No bests. Separate dests `/twnotifi` → `/tw/destinations`, state `/data/tw-state.json`.

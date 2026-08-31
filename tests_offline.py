@@ -398,7 +398,7 @@ def main() -> None:
 
     vashnik = [b for b in BOSSES if b.slug == "vashnik-the-malignant"][0]
     line = format_tw_kill(TwKillEvent("Fortune", vashnik, 4, 7))
-    assert line == "台服 Fortune 擊殺 第4王 Vashnik the Malignant（4/8）\n嘗試次數 7"
+    assert line == "台服 Fortune 擊殺 四王 Vashnik the Malignant（4/8）\n嘗試次數 7"
     last_b = [b for b in BOSSES if b.slug == "ulatek"][0]
     assert format_tw_kill(TwKillEvent("Fortune", last_b, 8, None)) == (
         "台服 Fortune 擊殺 尾王 Ula'tek（8/8）"
@@ -444,7 +444,7 @@ def main() -> None:
     assert tick.events[0].killed_count == 4
     assert tick.events[0].boss.slug == "vashnik-the-malignant"
     msg = tick.message()
-    assert msg and msg.startswith("台服 Fortune 擊殺 第4王")
+    assert msg and msg.startswith("台服 Fortune 擊殺 四王")
     assert "嘗試次數 7" in msg
     assert "!best" not in msg
 

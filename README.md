@@ -43,7 +43,7 @@ Quiet otherwise. `[SILENT]` is never posted to chat.
 | World first | Last boss Ula'tek may say `世界首殺` only if previous state had no world ulatek kill. |
 | Fingerprint | Kills + best display. **No timestamps.** |
 | Copy | Best starts with `!best`. Kill is `{guild} 擊殺 尾王 …（8/8）` then `嘗試次數 N`. `pulls` → **嘗試次數** (never 「拉」). No URL. |
-| Taiwan | Rankings `region=tw`. Notify when max defeated count increases. No best. Copy: `台服 {guild} 擊殺 第N王 …（N/8）`. |
+| Taiwan | Rankings `region=tw`. Notify when max defeated count increases. No best. Copy: `台服 {guild} 擊殺 四王 …（4/8）`. |
 
 ## Env
 

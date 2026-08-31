@@ -9,6 +9,17 @@ from dataclasses import dataclass, field
 
 from models import LAST_BOSS_SLUG, TOTAL_BOSSES, Boss, boss_by_slug
 
+_ZH_ORDINAL = {
+    1: "一",
+    2: "二",
+    3: "三",
+    4: "四",
+    5: "五",
+    6: "六",
+    7: "七",
+    8: "八",
+}
+
 
 @dataclass
 class TwGuildSnap:
@@ -163,7 +174,8 @@ def format_tw_kill(event: TwKillEvent) -> str:
     if b.slug.lower() == LAST_BOSS_SLUG:
         line = f"台服 {event.guild_name} 擊殺 尾王 {b.name}{frac}"
     else:
-        line = f"台服 {event.guild_name} 擊殺 第{b.index}王 {b.name}{frac}"
+        ordinal = _ZH_ORDINAL.get(b.index, str(b.index))
+        line = f"台服 {event.guild_name} 擊殺 {ordinal}王 {b.name}{frac}"
     if event.pulls is not None:
         line += f"\n嘗試次數 {event.pulls}"
     return line
