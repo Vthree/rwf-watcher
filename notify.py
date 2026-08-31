@@ -60,35 +60,47 @@ def fanout(
     text: str,
     *,
     telegram_token: str,
-    telegram_chat_id: str,
     discord_token: str,
-    discord_channel_id: str,
+    telegram_chat_ids: list[str] | None = None,
+    discord_channel_ids: list[str] | None = None,
     dry_run: bool = False,
 ) -> None:
     if not should_send(text):
         logger.info("skip send: empty or SILENT")
         return
+    tg_ids = [x for x in (telegram_chat_ids or []) if x]
+    dc_ids = [x for x in (discord_channel_ids or []) if x]
     if dry_run:
-        logger.info("DRY_RUN would send %s chars", len(text))
+        logger.info(
+            "DRY_RUN would send %s chars tg=%s dc=%s",
+            len(text),
+            tg_ids,
+            dc_ids,
+        )
+        return
+    if not tg_ids and not dc_ids:
+        logger.info("no destinations; skip send")
         return
     errors: list[str] = []
-    if telegram_token and telegram_chat_id:
+    for chat_id in tg_ids:
+        if not telegram_token:
+            errors.append("telegram token missing")
+            break
         try:
-            send_telegram(telegram_token, telegram_chat_id, text)
-            logger.info("telegram sent chat=%s chars=%s", telegram_chat_id, len(text))
+            send_telegram(telegram_token, chat_id, text)
+            logger.info("telegram sent chat=%s chars=%s", chat_id, len(text))
         except Exception as e:
-            errors.append(f"telegram: {e}")
-            logger.exception("telegram send failed")
-    else:
-        logger.warning("telegram not configured")
-    if discord_token and discord_channel_id:
+            errors.append(f"telegram {chat_id}: {e}")
+            logger.exception("telegram send failed chat=%s", chat_id)
+    for channel_id in dc_ids:
+        if not discord_token:
+            errors.append("discord token missing")
+            break
         try:
-            send_discord(discord_token, discord_channel_id, text)
-            logger.info("discord sent channel=%s chars=%s", discord_channel_id, len(text))
+            send_discord(discord_token, channel_id, text)
+            logger.info("discord sent channel=%s chars=%s", channel_id, len(text))
         except Exception as e:
-            errors.append(f"discord: {e}")
-            logger.exception("discord send failed")
-    else:
-        logger.warning("discord not configured")
-    if errors and len(errors) == 2:
+            errors.append(f"discord {channel_id}: {e}")
+            logger.exception("discord send failed channel=%s", channel_id)
+    if errors and len(errors) >= max(1, len(tg_ids) + len(dc_ids)):
         raise RuntimeError("; ".join(errors))

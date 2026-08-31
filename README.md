@@ -4,7 +4,16 @@ WoW Race to World First notifier for **Echo / Liquid / Method** on *The Venomous
 
 Independent sidecar. **Not** part of `grok-bot-core`. No LLM. LINE is omitted (Push quota).
 
-Every 2 minutes it polls the [Raider.io API](https://raider.io) and sends **Telegram + Discord** only when:
+Toggle a channel from the grok bot already in that chat:
+
+```text
+/rwfnotifi on
+/rwfnotifi off
+```
+
+(`!rwfnotifi` on Discord also works. Alias `/rwfnotify`.)
+
+Every 2 minutes it polls the [Raider.io API](https://raider.io) and sends **only to channels that are on** when:
 
 - a tracked guild gets a **kill**, or
 - live `progress_display` on the **first undefeated boss** is a strictly better remaining HP / later phase.
@@ -29,10 +38,10 @@ Data attribution: notices include a [raider.io](https://raider.io) guild link.
 | Variable | Required | Notes |
 |----------|----------|--------|
 | `RIO_ACCESS_KEY` | yes | Also accepts `RAIDERIO_ACCESS_KEY` / `RIO_API_KEY` |
-| `TELEGRAM_BOT_TOKEN` | one of TG/DC | Same token as telegram-grok-bot |
-| `TELEGRAM_RWF_CHAT_ID` | with TG | Destination group/channel |
-| `DISCORD_BOT_TOKEN` | one of TG/DC | Same token as discord-grok-bot |
-| `DISCORD_RWF_CHANNEL_ID` | with DC | Destination channel |
+| `TELEGRAM_BOT_TOKEN` | for TG send | Same token as telegram-grok-bot |
+| `DISCORD_BOT_TOKEN` | for DC send | Same token as discord-grok-bot |
+| `RWF_CONTROL_TOKEN` | yes | Shared with grok bots so `/rwfnotifi` can toggle dests |
+| `PORT` | no | Control HTTP (default 8080) |
 | `RWF_POLL_SECONDS` | no | Default `120` |
 | `RWF_STATE_PATH` | no | Default `/data/rwf-state.json` on Railway |
 | `RWF_DRY_RUN` | no | Log only |

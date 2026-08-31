@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
+from destinations import load as load_dests
+from destinations import set_dest
 from models import (
     FALLBACK_BOSSES,
     GUILDS,
@@ -259,6 +264,25 @@ def main() -> None:
     stored = coalesce_snapshot(s1, worse)
     assert stored.guilds[ECHO.id].best.remaining == 76.03
     assert stored.world_ulatek is False
+
+    with tempfile.TemporaryDirectory() as td:
+        p = Path(td) / "dest.json"
+        assert load_dests(p) == {"discord": [], "telegram": []}
+        r = set_dest("discord", "1047807735779045406", True, p)
+        assert r["enabled"] is True
+        assert r["ids"] == ["1047807735779045406"]
+        set_dest("discord", "111", True, p)
+        set_dest("telegram", "-1001603086249", True, p)
+        data = load_dests(p)
+        assert data["discord"] == ["1047807735779045406", "111"]
+        assert data["telegram"] == ["-1001603086249"]
+        set_dest("discord", "1047807735779045406", False, p)
+        assert load_dests(p)["discord"] == ["111"]
+        try:
+            set_dest("line", "x", True, p)
+            raise AssertionError("line should fail")
+        except ValueError:
+            pass
 
     print("ALL_UNIT_TESTS_PASSED")
 

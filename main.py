@@ -11,6 +11,8 @@ import os
 import sys
 import time
 
+from control import start_control_server
+from destinations import load as load_dests
 from env_utils import env_secret
 from models import GUILDS, RAID_SLUG, boss_list
 from notify import fanout
@@ -27,7 +29,7 @@ logger = logging.getLogger("rwf")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-VERSION = "1.0.1"
+VERSION = "1.1.0"
 
 
 def _int_env(name: str, default: int) -> int:
@@ -43,9 +45,7 @@ def _int_env(name: str, default: int) -> int:
 def main() -> int:
     rio_key = env_secret("RIO_ACCESS_KEY", "RAIDERIO_ACCESS_KEY", "RIO_API_KEY")
     tg_token = env_secret("TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN")
-    tg_chat = env_secret("TELEGRAM_RWF_CHAT_ID", "TELEGRAM_CHAT_ID")
     dc_token = env_secret("DISCORD_BOT_TOKEN", "DISCORD_TOKEN")
-    dc_chan = env_secret("DISCORD_RWF_CHANNEL_ID", "DISCORD_CHANNEL_ID")
     dry_run = env_secret("RWF_DRY_RUN").lower() in {"1", "true", "yes", "on"}
     once = env_secret("RWF_ONCE").lower() in {"1", "true", "yes", "on"}
     interval = max(30, _int_env("RWF_POLL_SECONDS", 120))
@@ -53,19 +53,18 @@ def main() -> int:
     if not rio_key:
         logger.error("RIO_ACCESS_KEY missing")
         return 1
-    if not dry_run and not ((tg_token and tg_chat) or (dc_token and dc_chan)):
-        logger.error("need Telegram and/or Discord destination")
-        return 1
 
+    start_control_server()
+    dests = load_dests()
     logger.info(
-        "rwf-watcher %s raid=%s guilds=%s poll=%ss dry_run=%s tg_chat=%s dc_chan=%s",
+        "rwf-watcher %s raid=%s guilds=%s poll=%ss dry_run=%s dest_tg=%s dest_dc=%s",
         VERSION,
         RAID_SLUG,
         ",".join(g.name for g in GUILDS),
         interval,
         dry_run,
-        bool(tg_chat),
-        bool(dc_chan),
+        dests.get("telegram") or [],
+        dests.get("discord") or [],
     )
 
     client = RioClient(rio_key)
@@ -92,12 +91,13 @@ def main() -> int:
                     logger.info("silent fp=%s world_ulatek=%s", tick.fingerprint, curr.world_ulatek)
                 else:
                     logger.info("notify %s chars fp=%s", len(msg), tick.fingerprint)
+                    dests = load_dests()
                     fanout(
                         msg,
                         telegram_token=tg_token,
-                        telegram_chat_id=tg_chat,
                         discord_token=dc_token,
-                        discord_channel_id=dc_chan,
+                        telegram_chat_ids=dests.get("telegram") or [],
+                        discord_channel_ids=dests.get("discord") or [],
                         dry_run=dry_run,
                     )
                 stored = coalesce_snapshot(prev, curr)

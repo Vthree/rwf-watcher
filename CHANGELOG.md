@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 — 2026-08-31
+
+- Destinations are toggled per channel via `/rwfnotifi on|off` on the grok bots.
+- HTTP control API on `PORT` (default 8080). Empty dest list = no send.
+- Env `TELEGRAM_RWF_CHAT_ID` / `DISCORD_RWF_CHANNEL_ID` no longer auto-target a channel.
+
 ## 1.0.1 — 2026-08-31
 
 - Railpack runtime Python 3.13.7 (3.12.8 mise attestations failed).

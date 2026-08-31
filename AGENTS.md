@@ -12,6 +12,7 @@ Sidecar for WoW RWF notices (Echo / Liquid / Method, 《烈毒之淵》 Mythic).
 - Never use ranking `bestPercent` or `boss=latest` for kills.
 - Hidden HP: no percent alerts; still report kills.
 - Fingerprint without timestamps. First poll seeds state, stays silent.
+- Destinations: `/rwfnotifi on|off` in the grok bots writes `/data/rwf-destinations.json` via the control HTTP API. Empty list = no send.
 - `pulls` → 嘗試次數. Do not send `[SILENT]` to chats.
 - Ula'tek `世界首殺` only if previous state had no world ulatek.
 
