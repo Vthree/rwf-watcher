@@ -137,12 +137,14 @@ def main() -> None:
     tick = diff_snapshot(s1, s3, BOSSES, GUILDS)
     assert tick.silent is False
     msg = tick.message()
-    assert msg and "嘗試次數" in msg
+    assert msg and msg.startswith("!best")
+    assert "嘗試次數" in msg
     assert "拉" not in msg
     assert "[SILENT]" not in msg
     assert "剩餘" in msg
     assert "Ula'tek" in msg
     assert "Echo" in msg
+    assert "raider.io" not in msg
 
     # HP went up → silent, coalesce keeps lower
     worse = _snap(echo_best=_best(remaining=80.0, display="80%"))
@@ -264,11 +266,15 @@ def main() -> None:
     assert not_started.kind == "none"
 
     # best message wording
-    text = format_best(BestEvent(ECHO, p3))
-    assert "嘗試次數 91" in text or "嘗試次數 91" in text.replace("91", str(p3.pulls))
+    text = format_best(BestEvent(ECHO, _best()))
+    assert text == (
+        "!best\n"
+        "Echo 《烈毒之淵》Mythic\n"
+        "Ula'tek 剩餘 76.03%\n"
+        "嘗試次數 91"
+    )
     assert "拉" not in text
-    assert "Method" not in text
-    assert "raider.io/guilds/eu/tarren-mill/Echo" in text
+    assert "raider.io" not in text
     assert "[SILENT]" not in text
 
     assert should_send(None) is False

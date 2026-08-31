@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.2 — 2026-08-31
+
+- Best notice starts with `!best` and no longer includes the Raider.io URL.
+
 ## 1.1.1 — 2026-08-31
 
 - Notices only for last boss **Ula'tek**: new best HP and kill (incl. 世界首殺). Bosses 1–7 stay silent.

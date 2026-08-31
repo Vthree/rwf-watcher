@@ -348,10 +348,13 @@ def format_kill(event: KillEvent) -> str:
 def format_best(event: BestEvent) -> str:
     g = event.guild
     best = event.best
-    lines = [f"{g.name} 《{RAID_NAME_ZH}》Mythic", f"{best.boss_name} {format_remaining(best)}"]
+    lines = [
+        "!best",
+        f"{g.name} 《{RAID_NAME_ZH}》Mythic",
+        f"{best.boss_name} {format_remaining(best)}",
+    ]
     if best.pulls is not None:
         lines.append(f"嘗試次數 {best.pulls}")
-    lines.append(g.rio_url)
     return "\n".join(lines)
 
 
