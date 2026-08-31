@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.3 — 2026-08-31
+
+- Poll interval default 30s (`RWF_POLL_SECONDS=30`).
+
 ## 1.1.2 — 2026-08-31
 
 - Best notice starts with `!best` and no longer includes the Raider.io URL.

@@ -29,7 +29,7 @@ logger = logging.getLogger("rwf")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-VERSION = "1.1.2"
+VERSION = "1.1.3"
 
 
 def _int_env(name: str, default: int) -> int:
@@ -48,7 +48,7 @@ def main() -> int:
     dc_token = env_secret("DISCORD_BOT_TOKEN", "DISCORD_TOKEN")
     dry_run = env_secret("RWF_DRY_RUN").lower() in {"1", "true", "yes", "on"}
     once = env_secret("RWF_ONCE").lower() in {"1", "true", "yes", "on"}
-    interval = max(30, _int_env("RWF_POLL_SECONDS", 120))
+    interval = max(30, _int_env("RWF_POLL_SECONDS", 30))
 
     if not rio_key:
         logger.error("RIO_ACCESS_KEY missing")
