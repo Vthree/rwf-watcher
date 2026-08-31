@@ -173,7 +173,7 @@ def main() -> None:
     last2 = KillEvent(LIQUID, Boss("ulatek", "Ula'tek", 8), 8, world_first=False)
     assert "世界首殺" not in format_kill(last2)
 
-    # kill detected from union, not from latest
+    # bosses 1–7 are tracked but never posted (only 尾王 Ula'tek)
     prev = _snap(echo_killed=FALLBACK_BOSSES[:6], echo_best=p2)
     seven = tuple(s for s, _ in FALLBACK_BOSSES[:7])
     curr = _snap(
@@ -182,9 +182,32 @@ def main() -> None:
         extra={ECHO.id: GuildSnap(killed=seven, best=_best())},
     )
     tick = diff_snapshot(prev, curr, BOSSES, GUILDS)
-    assert any(e.boss.slug == "the-coiled-altar" for e in tick.events_kills)
+    assert tick.events_kills == []
+    # first numeric on ulatek (moved onto last boss) is a last-boss best
+    assert tick.events_best and tick.events_best[0].best.boss_slug == "ulatek"
     msg = tick.message()
-    assert msg and msg.splitlines()[0].startswith("擊殺 Echo 第7王")
+    assert msg and "Ula'tek" in msg
+    assert "第7王" not in msg
+    assert "The Coiled Altar" not in msg
+
+    method_old = _snap(
+        extra={
+            METHOD.id: GuildSnap(
+                killed=tuple(s for s, _ in FALLBACK_BOSSES[:6]),
+                best=p2,
+            )
+        }
+    )
+    method_new = _snap(
+        extra={
+            METHOD.id: GuildSnap(
+                killed=tuple(s for s, _ in FALLBACK_BOSSES[:6]),
+                best=p3,
+            )
+        }
+    )
+    tick = diff_snapshot(method_old, method_new, BOSSES, GUILDS)
+    assert tick.silent is True
 
     # world first only when prev did not already know ulatek
     prev_clear = _snap(echo_killed=FALLBACK_BOSSES[:7], echo_best=a, world=False)

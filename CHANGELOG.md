@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1 — 2026-08-31
+
+- Notices only for last boss **Ula'tek**: new best HP and kill (incl. 世界首殺). Bosses 1–7 stay silent.
+
 ## 1.1.0 — 2026-08-31
 
 - Destinations are toggled per channel via `/rwfnotifi on|off` on the grok bots.

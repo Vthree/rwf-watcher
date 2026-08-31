@@ -280,17 +280,23 @@ def diff_snapshot(
         old_killed = set(old.killed)
         new_kills = [s for s in new.killed if s not in old_killed]
         for slug in new_kills:
+            if slug.lower() != LAST_BOSS_SLUG:
+                continue
             boss = boss_by_slug(bosses, slug)
             if boss is None:
                 boss = Boss(slug=slug, name=slug, index=len(new.killed))
             count = list(new.killed).index(slug) + 1 if slug in new.killed else len(new.killed)
             world_first = False
-            if boss.slug.lower() == LAST_BOSS_SLUG and wf_available:
+            if wf_available:
                 world_first = True
                 wf_available = False
             kills.append(KillEvent(g, boss, count, world_first=world_first))
-        if is_new_best(old.best, new.best):
-            bests.append(BestEvent(g, new.best))  # type: ignore[arg-type]
+        if (
+            new.best
+            and new.best.boss_slug.lower() == LAST_BOSS_SLUG
+            and is_new_best(old.best, new.best)
+        ):
+            bests.append(BestEvent(g, new.best))
 
     silent = not kills and not bests
     return TickResult(kills, bests, fp, silent=silent)

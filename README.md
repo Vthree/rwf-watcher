@@ -13,10 +13,12 @@ Toggle a channel from the grok bot already in that chat:
 
 (`!rwfnotifi` on Discord also works. Alias `/rwfnotify`.)
 
-Every 2 minutes it polls the [Raider.io API](https://raider.io) and sends **only to channels that are on** when:
+Every 2 minutes it polls the [Raider.io API](https://raider.io) and sends **only to channels that are on**, and **only for last boss Ula'tek**:
 
-- a tracked guild gets a **kill**, or
-- live `progress_display` on the **first undefeated boss** is a strictly better remaining HP / later phase.
+- a tracked guild **kills Ula'tek**, or
+- live `progress_display` on Ula'tek is a strictly better remaining HP / later phase.
+
+Bosses 1–7 are tracked internally so kills are not missed, but they never post.
 
 Quiet otherwise. `[SILENT]` is never posted to chat.
 
