@@ -365,11 +365,11 @@ def format_kill(event: KillEvent) -> str:
     b = event.boss
     frac = f"（{event.killed_count}/{TOTAL_BOSSES}）"
     if b.slug.lower() == LAST_BOSS_SLUG:
-        line = f"擊殺 {g} 尾王 {b.name}{frac}"
+        line = f"{g} 擊殺 尾王 {b.name}{frac}"
         if event.world_first:
             line += " 世界首殺"
         return line
-    return f"擊殺 {g} 第{b.index}王 {b.name}{frac}"
+    return f"{g} 擊殺 第{b.index}王 {b.name}{frac}"
 
 
 def format_best(event: BestEvent) -> str:

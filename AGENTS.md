@@ -19,6 +19,7 @@ Sidecar for WoW RWF notices (Echo / Liquid / Method, 《烈毒之淵》 Mythic).
 - Best notice: first line `!best`, then guild / remaining / 嘗試次數. No URL.
 - `pulls` → 嘗試次數. Do not send `[SILENT]` to chats.
 - Ula'tek `世界首殺` only if previous state had no world ulatek.
+- Kill line: `{guild} 擊殺 尾王 {name}（8/8）` then optional ` 世界首殺`. Guild name before 擊殺.
 
 ## Don't
 

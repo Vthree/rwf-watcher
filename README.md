@@ -31,7 +31,7 @@ Quiet otherwise. `[SILENT]` is never posted to chat.
 | Hidden HP | Liquid-style hidden percents: no HP alerts, **kills still fire**. |
 | World first | Last boss Ula'tek may say `世界首殺` only if previous state had no world ulatek kill. |
 | Fingerprint | Kills + best display. **No timestamps.** |
-| Copy | Best starts with `!best`. `pulls` → **嘗試次數** (never 「拉」). No URL. |
+| Copy | Best starts with `!best`. Kill is `{guild} 擊殺 尾王 …（8/8）`. `pulls` → **嘗試次數** (never 「拉」). No URL. |
 
 ## Env
 

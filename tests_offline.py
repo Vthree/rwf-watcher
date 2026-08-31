@@ -218,11 +218,12 @@ def main() -> None:
 
     k = KillEvent(ECHO, Boss("the-coiled-altar", "The Coiled Altar", 7), 7)
     line = format_kill(k)
-    assert line == "擊殺 Echo 第7王 The Coiled Altar（7/8）"
+    assert line == "Echo 擊殺 第7王 The Coiled Altar（7/8）"
     last = KillEvent(ECHO, Boss("ulatek", "Ula'tek", 8), 8, world_first=True)
     line = format_kill(last)
-    assert line == "擊殺 Echo 尾王 Ula'tek（8/8） 世界首殺"
+    assert line == "Echo 擊殺 尾王 Ula'tek（8/8） 世界首殺"
     last2 = KillEvent(LIQUID, Boss("ulatek", "Ula'tek", 8), 8, world_first=False)
+    assert format_kill(last2) == "Liquid 擊殺 尾王 Ula'tek（8/8）"
     assert "世界首殺" not in format_kill(last2)
 
     # bosses 1–7 are tracked but never posted (only 尾王 Ula'tek)
@@ -330,7 +331,7 @@ def main() -> None:
     assert should_send(None) is False
     assert should_send("[SILENT]") is False
     assert should_send("  [SILENT]  ") is False
-    assert should_send("擊殺 Echo 尾王 Ula'tek（8/8）") is True
+    assert should_send("Echo 擊殺 尾王 Ula'tek（8/8）") is True
 
     # state roundtrip has no timestamp keys
     blob = snapshot_to_json(s1)

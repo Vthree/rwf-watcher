@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.5 — 2026-08-31
+
+- Kill line puts the guild name first: `Echo 擊殺 尾王 Ula'tek（8/8）` (` 世界首殺` still appended when applicable).
+
 ## 1.1.4 — 2026-08-31
 
 - Ula'tek `%` notices only when a tracked guild takes the **world lead** among Echo / Liquid / Method (lower remaining than the current leader). Personal bests behind the leader stay silent.
