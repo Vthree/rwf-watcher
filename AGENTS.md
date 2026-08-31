@@ -1,5 +1,7 @@
 # AGENTS.md — rwf-watcher
 
+**Handoff for other machines / Grok Build:** read [HANDOFF.md](HANDOFF.md) first.
+
 Sidecar for WoW RWF notices (Echo / Liquid / Method, 《烈毒之淵》 Mythic).
 
 **Not** grok-bot-core. Do not add Hermes, web search, or LINE Push.
