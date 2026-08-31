@@ -37,7 +37,7 @@ class RioError(RuntimeError):
 
 
 class RioClient:
-    def __init__(self, access_key: str, timeout: float = 25.0) -> None:
+    def __init__(self, access_key: str, timeout: float = 40.0) -> None:
         if not access_key:
             raise RioError("missing Raider.io access_key")
         self._key = access_key
