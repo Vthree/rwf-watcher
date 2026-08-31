@@ -13,12 +13,23 @@ Toggle a channel from the grok bot already in that chat:
 
 (`!rwfnotifi` on Discord also works. Alias `/rwfnotify`.)
 
-Every 30 seconds it polls the [Raider.io API](https://raider.io) and sends **only to channels that are on**, and **only for last boss Ula'tek**:
+Toggle Taiwan overall-progress kills separately:
+
+```text
+/twnotifi on
+/twnotifi off
+```
+
+Every 30 seconds it polls the [Raider.io API](https://raider.io) and sends **only to channels that are on**.
+
+RWF (Echo / Liquid / Method), **only for last boss Ula'tek**:
 
 - a tracked guild **kills Ula'tek**, or
 - live `progress_display` on Ula'tek is a new **world lead** among Echo / Liquid / Method (strictly better than the current leader). Personal bests that do not take the lead stay silent.
 
 Bosses 1–7 are tracked internally so kills are not missed, but they never post.
+
+Taiwan feed (independent dest list): **no named guilds**. Notify only when TW Mythic **overall max N/8** goes up. No best / HP lines. First poll seeds and stays silent.
 
 Quiet otherwise. `[SILENT]` is never posted to chat.
 
@@ -32,6 +43,7 @@ Quiet otherwise. `[SILENT]` is never posted to chat.
 | World first | Last boss Ula'tek may say `世界首殺` only if previous state had no world ulatek kill. |
 | Fingerprint | Kills + best display. **No timestamps.** |
 | Copy | Best starts with `!best`. Kill is `{guild} 擊殺 尾王 …（8/8）` then `嘗試次數 N`. `pulls` → **嘗試次數** (never 「拉」). No URL. |
+| Taiwan | Rankings `region=tw`. Notify when max defeated count increases. No best. Copy: `台服 {guild} 擊殺 第N王 …（N/8）`. |
 
 ## Env
 

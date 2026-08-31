@@ -2,7 +2,7 @@
 
 **Handoff for other machines / Grok Build:** read [HANDOFF.md](HANDOFF.md) first.
 
-Sidecar for WoW RWF notices (Echo / Liquid / Method, 《烈毒之淵》 Mythic).
+Sidecar for WoW RWF notices (Echo / Liquid / Method, 《烈毒之淵》 Mythic) plus an independent **Taiwan** region feed.
 
 **Not** grok-bot-core. Do not add Hermes, web search, or LINE Push.
 
@@ -20,9 +20,10 @@ Sidecar for WoW RWF notices (Echo / Liquid / Method, 《烈毒之淵》 Mythic).
 - `pulls` → 嘗試次數. Do not send `[SILENT]` to chats.
 - Ula'tek `世界首殺` only if previous state had no world ulatek.
 - Kill line: `{guild} 擊殺 尾王 {name}（8/8）` then optional ` 世界首殺`, then `嘗試次數 N` when pullCount is known. Guild name before 擊殺.
+- TW feed: no guild allowlist. Rankings `region=tw` only. Notify when overall max N/8 increases (3/8 → 4/8). **No bests.** First poll silent. `/twnotifi` writes `/data/tw-destinations.json`. Line: `台服 {guild} 擊殺 第N王 …（N/8）`.
 
 ## Don't
 
 - Commit `RIO_ACCESS_KEY`.
-- Hand-edit telegram/discord/line grok bots for this feature.
+- Edit grok-bot-core or LINE for this feature.
 - Notify LINE (Push quota).

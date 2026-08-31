@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.0 — 2026-08-31
+
+- Independent **Taiwan** feed: no hardcoded guilds. Notify only when TW Mythic overall N/8 increases (e.g. 3/8 → 4/8). No bests. Separate dests `/twnotifi` → `/tw/destinations`, state `/data/tw-state.json`.
+
 ## 1.1.6 — 2026-08-31
 
 - Kill notice also includes `嘗試次數 N` when pullCount is known (live ulatek after 8/8, else last stored ulatek pulls).

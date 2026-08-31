@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 
 from models import Snapshot
+from tw import TwSnapshot, tw_snapshot_from_json, tw_snapshot_to_json
 from watcher import snapshot_from_json, snapshot_to_json
 
 logger = logging.getLogger("rwf.state")
@@ -40,6 +41,38 @@ def save(snapshot: Snapshot, path: Path | None = None) -> None:
     tmp = p.with_suffix(p.suffix + ".tmp")
     tmp.write_text(
         json.dumps(snapshot_to_json(snapshot), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    tmp.replace(p)
+
+
+def tw_default_path() -> Path:
+    raw = os.environ.get("RWF_TW_STATE_PATH")
+    if raw:
+        return Path(raw)
+    if Path("/data").is_dir():
+        return Path("/data/tw-state.json")
+    return Path("data/tw-state.json")
+
+
+def load_tw(path: Path | None = None) -> TwSnapshot | None:
+    p = path or tw_default_path()
+    if not p.is_file():
+        return None
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        logger.warning("tw state load failed %s: %s", p, e)
+        return None
+    return tw_snapshot_from_json(data)
+
+
+def save_tw(snapshot: TwSnapshot, path: Path | None = None) -> None:
+    p = path or tw_default_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(
+        json.dumps(tw_snapshot_to_json(snapshot), ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
     tmp.replace(p)

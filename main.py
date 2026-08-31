@@ -18,7 +18,10 @@ from models import GUILDS, RAID_SLUG, boss_list
 from notify import fanout
 from rio import RioClient, RioError
 from state import load as load_state
+from state import load_tw
 from state import save as save_state
+from state import save_tw
+from tw import coalesce_tw, diff_tw, tw_region_max
 from watcher import coalesce_snapshot, diff_snapshot, fingerprint
 
 logging.basicConfig(
@@ -29,7 +32,7 @@ logger = logging.getLogger("rwf")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-VERSION = "1.1.6"
+VERSION = "1.2.0"
 
 
 def _int_env(name: str, default: int) -> int:
@@ -55,9 +58,10 @@ def main() -> int:
         return 1
 
     start_control_server()
-    dests = load_dests()
+    dests = load_dests(feed="rwf")
+    tw_dests = load_dests(feed="tw")
     logger.info(
-        "rwf-watcher %s raid=%s guilds=%s poll=%ss dry_run=%s dest_tg=%s dest_dc=%s",
+        "rwf-watcher %s raid=%s guilds=%s poll=%ss dry_run=%s dest_tg=%s dest_dc=%s tw_tg=%s tw_dc=%s",
         VERSION,
         RAID_SLUG,
         ",".join(g.name for g in GUILDS),
@@ -65,6 +69,8 @@ def main() -> int:
         dry_run,
         dests.get("telegram") or [],
         dests.get("discord") or [],
+        tw_dests.get("telegram") or [],
+        tw_dests.get("discord") or [],
     )
 
     client = RioClient(rio_key)
@@ -81,6 +87,11 @@ def main() -> int:
             logger.info("no prior state; first poll will seed and stay silent")
         else:
             logger.info("loaded state fp=%s", fingerprint(prev))
+        tw_prev = load_tw()
+        if tw_prev is None:
+            logger.info("no prior TW state; first TW poll will seed and stay silent")
+        else:
+            logger.info("loaded TW state region_max=%s", tw_prev.region_max)
 
         while True:
             try:
@@ -91,7 +102,7 @@ def main() -> int:
                     logger.info("silent fp=%s world_ulatek=%s", tick.fingerprint, curr.world_ulatek)
                 else:
                     logger.info("notify %s chars fp=%s", len(msg), tick.fingerprint)
-                    dests = load_dests()
+                    dests = load_dests(feed="rwf")
                     fanout(
                         msg,
                         telegram_token=tg_token,
@@ -105,6 +116,31 @@ def main() -> int:
                 prev = stored
             except Exception:
                 logger.exception("poll failed")
+            try:
+                tw_curr = client.fetch_tw_snapshot()
+                tw_tick = diff_tw(tw_prev, tw_curr, bosses)
+                tw_msg = tw_tick.message()
+                if tw_tick.silent or not tw_msg:
+                    logger.info(
+                        "tw silent region_max=%s",
+                        tw_region_max(tw_curr),
+                    )
+                else:
+                    logger.info("tw notify %s chars", len(tw_msg))
+                    tw_dests = load_dests(feed="tw")
+                    fanout(
+                        tw_msg,
+                        telegram_token=tg_token,
+                        discord_token=dc_token,
+                        telegram_chat_ids=tw_dests.get("telegram") or [],
+                        discord_channel_ids=tw_dests.get("discord") or [],
+                        dry_run=dry_run,
+                    )
+                tw_stored = coalesce_tw(tw_prev, tw_curr)
+                save_tw(tw_stored)
+                tw_prev = tw_stored
+            except Exception:
+                logger.exception("tw poll failed")
             if once:
                 return 0
             time.sleep(interval)

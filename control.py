@@ -46,17 +46,19 @@ class DestHandler(BaseHTTPRequestHandler):
         if path in {"/", "/health"}:
             self._send(200, {"ok": True, "service": "rwf-watcher"})
             return
-        if path == "/destinations":
+        feed = _feed_from_path(path)
+        if feed:
             if not self._check_auth():
                 self._send(401, {"ok": False, "error": "unauthorized"})
                 return
-            self._send(200, {"ok": True, **load()})
+            self._send(200, {"ok": True, "feed": feed, **load(feed=feed)})
             return
         self._send(404, {"ok": False, "error": "not found"})
 
     def do_POST(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
-        if path != "/destinations":
+        feed = _feed_from_path(path)
+        if not feed:
             self._send(404, {"ok": False, "error": "not found"})
             return
         if not self._check_auth():
@@ -77,11 +79,20 @@ class DestHandler(BaseHTTPRequestHandler):
                 str(data.get("platform") or ""),
                 str(data.get("id") or ""),
                 bool(data.get("enabled")),
+                feed=feed,
             )
         except ValueError as e:
             self._send(400, {"ok": False, "error": str(e)})
             return
         self._send(200, {"ok": True, **result})
+
+
+def _feed_from_path(path: str) -> str | None:
+    if path == "/destinations":
+        return "rwf"
+    if path == "/tw/destinations":
+        return "tw"
+    return None
 
 
 def start_control_server(host: str = "0.0.0.0", port: int | None = None) -> ThreadingHTTPServer:

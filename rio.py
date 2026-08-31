@@ -20,6 +20,7 @@ from models import (
     boss_by_slug,
     boss_list,
 )
+from tw import TwSnapshot, snapshot_from_rankings
 from watcher import (
     _classify_best,
     first_undefeated,
@@ -89,15 +90,21 @@ class RioClient:
         return boss_list()
 
     def world_rankings(self, limit: int = 20) -> list[dict]:
+        return self.region_rankings("world", limit=limit)
+
+    def region_rankings(self, region: str, limit: int = 50) -> list[dict]:
         data = self._get(
             "/raiding/raid-rankings",
             raid=RAID_SLUG,
             difficulty=DIFFICULTY,
-            region="world",
+            region=region,
             limit=limit,
         )
         rows = data.get("raidRankings") or []
         return rows if isinstance(rows, list) else []
+
+    def fetch_tw_snapshot(self) -> TwSnapshot:
+        return snapshot_from_rankings(self.region_rankings("tw", limit=50))
 
     def guild_rankings(self) -> dict[int, dict]:
         ids = ",".join(str(g.id) for g in GUILDS)

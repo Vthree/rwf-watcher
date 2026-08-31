@@ -17,6 +17,17 @@ from models import (
 )
 from notify import should_send
 from rio import parse_boss_progress
+from tw import (
+    TwGuildSnap,
+    TwKillEvent,
+    TwSnapshot,
+    coalesce_tw,
+    diff_tw,
+    format_tw_kill,
+    guild_snap_from_ranking,
+    snapshot_from_rankings,
+    tw_region_max,
+)
 from watcher import (
     coalesce_best,
     coalesce_snapshot,
@@ -380,6 +391,98 @@ def main() -> None:
             raise AssertionError("line should fail")
         except ValueError:
             pass
+        twp = Path(td) / "tw-dest.json"
+        set_dest("discord", "tw-chan", True, twp, feed="tw")
+        assert load_dests(twp)["discord"] == ["tw-chan"]
+        assert load_dests(p)["discord"] == ["111"]
+
+    vashnik = [b for b in BOSSES if b.slug == "vashnik-the-malignant"][0]
+    line = format_tw_kill(TwKillEvent("Fortune", vashnik, 4, 7))
+    assert line == "台服 Fortune 擊殺 第4王 Vashnik the Malignant（4/8）\n嘗試次數 7"
+    last_b = [b for b in BOSSES if b.slug == "ulatek"][0]
+    assert format_tw_kill(TwKillEvent("Fortune", last_b, 8, None)) == (
+        "台服 Fortune 擊殺 尾王 Ula'tek（8/8）"
+    )
+
+    def _tw_g(gid, name, killed, pulls=None, first=None):
+        return TwGuildSnap(
+            id=gid,
+            name=name,
+            realm="暗影之月",
+            killed=tuple(killed),
+            pulls=pulls or {},
+            first_defeated=first or {},
+        )
+
+    three = [s for s, _ in FALLBACK_BOSSES[:3]]
+    four = [s for s, _ in FALLBACK_BOSSES[:4]]
+    prev_tw = TwSnapshot(
+        region_max=3,
+        guilds={1: _tw_g(1, "Fortune", three, {"vashnik-the-malignant": 7})},
+    )
+    curr_tw = TwSnapshot(
+        region_max=4,
+        guilds={
+            1: _tw_g(
+                1,
+                "Fortune",
+                four,
+                {"vashnik-the-malignant": 7},
+                {"vashnik-the-malignant": "2026-08-31T12:00:00Z"},
+            ),
+            2: _tw_g(2, "月刃", [s for s, _ in FALLBACK_BOSSES[:2]]),
+        },
+    )
+    tick = diff_tw(None, curr_tw, BOSSES)
+    assert tick.silent is True
+    tick = diff_tw(prev_tw, prev_tw, BOSSES)
+    assert tick.silent is True
+    tick = diff_tw(prev_tw, curr_tw, BOSSES)
+    assert tick.silent is False
+    assert len(tick.events) == 1
+    assert tick.events[0].guild_name == "Fortune"
+    assert tick.events[0].killed_count == 4
+    assert tick.events[0].boss.slug == "vashnik-the-malignant"
+    msg = tick.message()
+    assert msg and msg.startswith("台服 Fortune 擊殺 第4王")
+    assert "嘗試次數 7" in msg
+    assert "!best" not in msg
+
+    still_3 = TwSnapshot(
+        region_max=3,
+        guilds={
+            1: _tw_g(1, "Fortune", three),
+            2: _tw_g(2, "月刃", three),
+        },
+    )
+    tick = diff_tw(prev_tw, still_3, BOSSES)
+    assert tick.silent is True
+
+    new_guild_4 = TwSnapshot(
+        region_max=4,
+        guilds={9: _tw_g(9, "NewGuild", four, {four[-1]: 11})},
+    )
+    tick = diff_tw(prev_tw, new_guild_4, BOSSES)
+    assert len(tick.events) == 1
+    assert tick.events[0].killed_count == 4
+    assert tick.events[0].guild_name == "NewGuild"
+
+    stored_tw = coalesce_tw(prev_tw, still_3)
+    assert stored_tw.region_max == 3
+    stored_tw = coalesce_tw(prev_tw, curr_tw)
+    assert stored_tw.region_max == 4
+
+    parsed = guild_snap_from_ranking(
+        {
+            "guild": {"id": 35688, "name": "Fortune", "realm": {"altName": "暗影之月"}},
+            "encountersDefeated": [
+                {"slug": "nekzali-the-soulcoiler", "firstDefeated": "2026-08-26T15:00:45.000Z"},
+            ],
+            "encountersPulled": [{"slug": "nekzali-the-soulcoiler", "numPulls": 7}],
+        }
+    )
+    assert parsed is not None and parsed.name == "Fortune" and parsed.killed == ("nekzali-the-soulcoiler",)
+    assert tw_region_max(snapshot_from_rankings([])) == 0
 
     print("ALL_UNIT_TESTS_PASSED")
 

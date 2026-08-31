@@ -16,21 +16,23 @@ Grok bot 路由規則仍以各 host 的 [AGENTS.md](https://github.com/Vthree/te
 
 ## Current snapshot（2026-08-31）
 
-**Version: v1.1.6.** GitHub: [Vthree/rwf-watcher](https://github.com/Vthree/rwf-watcher)
+**Version: v1.2.0.** GitHub: [Vthree/rwf-watcher](https://github.com/Vthree/rwf-watcher)
 
 | 項目 | 現況 — 未經明示不要改 |
 |------|----------------------|
 | 用途 | Echo / Liquid / Method，《烈毒之淵》Mythic 即時通報 |
+| 台服 | **獨立** feed：不指定公會。只在台服 Mythic **整體最高 N/8 往上**才發擊殺（現況 3/8 → 有人到 4/8 才報）。**不發 best**。第一次 poll 種子不洗版 |
 | 平台 | Telegram + Discord。**LINE 不做**（Push 配額） |
 | 輪詢 | `RWF_POLL_SECONDS=30`（程式下限也是 30） |
-| 只發尾王 | 只報 **Ula'tek** 新 best 與擊殺。1–7 王內部追蹤、不發訊 |
+| 只發尾王 | RWF 只報 **Ula'tek** 新 best 與擊殺。1–7 王內部追蹤、不發訊。台服 feed 則報該次里程碑那隻王 |
 | 新 best | 只報三家裡的**世界領先**尾王 `%`（比目前領先者剩餘血量更低／階段更後）。落後的個人 best 不報。live `progress_display`；不用排行榜 `bestPercent` |
 | 擊殺 | rankings `encountersDefeated` ∪ live `isDefeated` |
 | Hidden | Liquid hidden 血量不報變化，擊殺仍報 |
 | 指紋 | 無時間戳。第一次 poll 只寫 state、不洗版 |
-| 目的地 | 頻道裡 `/rwfnotifi on\|off`；空名單就不發 |
+| 目的地 | RWF：`/rwfnotifi on\|off` → `/data/rwf-destinations.json`。台服：`/twnotifi on\|off` → `/data/tw-destinations.json`。空名單就不發 |
 | Best 格式 | 第一行 `!best`，無網址。`pulls` → **嘗試次數**（不要寫「拉」） |
 | 擊殺格式 | 公會名在前：`Echo 擊殺 尾王 Ula'tek（8/8）`。世界首殺再加 ` 世界首殺`。下一行 `嘗試次數 N`（有 pullCount 才寫） |
+| 台服擊殺格式 | `台服 Fortune 擊殺 第4王 Vashnik the Malignant（4/8）` + 嘗試次數。無世界首殺、無 best |
 | 安靜 | 不要把 `[SILENT]` 發到群裡 |
 | 世界首殺 | 僅尾王，且先前 state 還沒見過 world ulatek |
 | 金鑰 | `RIO_ACCESS_KEY` 只在 Railway env，**禁止 commit** |
@@ -42,8 +44,8 @@ Grok bot 路由規則仍以各 host 的 [AGENTS.md](https://github.com/Vthree/te
 | Repo | 角色 |
 |------|------|
 | [Vthree/rwf-watcher](https://github.com/Vthree/rwf-watcher) | 本 sidecar：輪詢、組字、發訊、control HTTP |
-| [Vthree/discord-grok-bot](https://github.com/Vthree/discord-grok-bot) | `/rwfnotifi`、`!rwfnotifi`、`@bot /rwfnotifi` → POST watcher |
-| [Vthree/telegram-grok-bot](https://github.com/Vthree/telegram-grok-bot) | `/rwfnotifi`（管理員） |
+| [Vthree/discord-grok-bot](https://github.com/Vthree/discord-grok-bot) | `/rwfnotifi`、`/twnotifi`（`!` 亦可）→ POST watcher |
+| [Vthree/telegram-grok-bot](https://github.com/Vthree/telegram-grok-bot) | `/rwfnotifi`、`/twnotifi`（管理員） |
 | grok-bot-core / line-grok-bot | **不要**為 RWF 改 routing 或加 LINE Push |
 
 ---
@@ -60,7 +62,7 @@ Grok bot 路由規則仍以各 host 的 [AGENTS.md](https://github.com/Vthree/te
 | line-grok-bot | `2a35a1ad-5af2-4684-8eab-1d00713bae96` |
 | hermes | `dfc754f9-b3ef-4b76-a1d3-683b6ed28263` |
 
-Watcher volume：`/data`（`rwf-state.json` 指紋、`rwf-destinations.json` 訂閱）。
+Watcher volume：`/data`（`rwf-state.json` 指紋、`rwf-destinations.json` 訂閱、`tw-state.json`、`tw-destinations.json`）。
 
 Watcher 必要 env：`RIO_ACCESS_KEY`、`TELEGRAM_BOT_TOKEN`、`DISCORD_BOT_TOKEN`、`RWF_CONTROL_TOKEN`、`PORT=8080`、`RWF_POLL_SECONDS=30`。
 
@@ -119,6 +121,13 @@ Echo 擊殺 尾王 Ula'tek（8/8）
 
 （沒有世界首殺就不要寫那四個字。沒有 pullCount 就不要寫嘗試次數那一行。）
 
+台服（區域最高進度往上才發，不發 best）：
+
+```text
+台服 Fortune 擊殺 第4王 Vashnik the Malignant（4/8）
+嘗試次數 7
+```
+
 ---
 
 ## 程式入口
@@ -127,14 +136,15 @@ Echo 擊殺 尾王 Ula'tek（8/8）
 |----|--------|
 | `main.py` | poll loop + 啟動 control HTTP |
 | `watcher.py` | 指紋、diff、只發 ulatek、組字 |
+| `tw.py` | 台服區域 N/8 里程碑、組字 |
 | `rio.py` | Raider.io client |
 | `destinations.py` | 訂閱名單 |
 | `control.py` | `GET/POST /destinations`、`GET /health` |
 | `notify.py` | TG sendMessage + Discord REST |
 | `tests_offline.py` | 無網路單元測試；改邏輯必跑 |
 
-Discord 指令實作：`discord-grok-bot/rwf_control.py` + `bot.py`。  
-Telegram：`telegram-grok-bot/rwf_control.py` + `bot.py`。
+Discord 指令實作：`discord-grok-bot/rwf_control.py` + `tw_control.py` + `bot.py`。  
+Telegram：`telegram-grok-bot/rwf_control.py` + `tw_control.py` + `bot.py`。
 
 Tag **身分組** + `/rwfnotifi` 會被當成問 Grok。請用 `/rwfnotifi` 或 `!rwfnotifi`。
 

@@ -12,7 +12,15 @@ logger = logging.getLogger("rwf.dest")
 PLATFORMS = ("discord", "telegram")
 
 
-def default_path() -> Path:
+def default_path(feed: str = "rwf") -> Path:
+    feed = (feed or "rwf").strip().lower()
+    if feed == "tw":
+        raw = os.environ.get("RWF_TW_DEST_PATH")
+        if raw:
+            return Path(raw)
+        if Path("/data").is_dir():
+            return Path("/data/tw-destinations.json")
+        return Path("data/tw-destinations.json")
     raw = os.environ.get("RWF_DEST_PATH")
     if raw:
         return Path(raw)
@@ -25,8 +33,8 @@ def _empty() -> dict[str, list[str]]:
     return {"discord": [], "telegram": []}
 
 
-def load(path: Path | None = None) -> dict[str, list[str]]:
-    p = path or default_path()
+def load(path: Path | None = None, feed: str = "rwf") -> dict[str, list[str]]:
+    p = path or default_path(feed)
     if not p.is_file():
         return _empty()
     try:
@@ -47,8 +55,8 @@ def load(path: Path | None = None) -> dict[str, list[str]]:
     return out
 
 
-def save(data: dict[str, list[str]], path: Path | None = None) -> None:
-    p = path or default_path()
+def save(data: dict[str, list[str]], path: Path | None = None, feed: str = "rwf") -> None:
+    p = path or default_path(feed)
     p.parent.mkdir(parents=True, exist_ok=True)
     payload = {plat: list(data.get(plat) or []) for plat in PLATFORMS}
     tmp = p.with_suffix(p.suffix + ".tmp")
@@ -56,14 +64,20 @@ def save(data: dict[str, list[str]], path: Path | None = None) -> None:
     tmp.replace(p)
 
 
-def set_dest(platform: str, dest_id: str, enabled: bool, path: Path | None = None) -> dict:
+def set_dest(
+    platform: str,
+    dest_id: str,
+    enabled: bool,
+    path: Path | None = None,
+    feed: str = "rwf",
+) -> dict:
     plat = (platform or "").strip().lower()
     if plat not in PLATFORMS:
         raise ValueError(f"platform must be discord or telegram, got {platform!r}")
     dest_id = str(dest_id).strip()
     if not dest_id:
         raise ValueError("id required")
-    data = load(path)
+    data = load(path, feed=feed)
     ids = list(data[plat])
     if enabled:
         if dest_id not in ids:
@@ -71,6 +85,14 @@ def set_dest(platform: str, dest_id: str, enabled: bool, path: Path | None = Non
     else:
         ids = [x for x in ids if x != dest_id]
     data[plat] = ids
-    save(data, path)
-    logger.info("%s %s dest %s=%s now=%s", plat, "on" if enabled else "off", dest_id, enabled, ids)
-    return {"platform": plat, "id": dest_id, "enabled": dest_id in ids, "ids": ids}
+    save(data, path, feed=feed)
+    logger.info(
+        "%s %s dest feed=%s %s=%s now=%s",
+        plat,
+        "on" if enabled else "off",
+        feed,
+        dest_id,
+        enabled,
+        ids,
+    )
+    return {"platform": plat, "id": dest_id, "enabled": dest_id in ids, "ids": ids, "feed": feed}
