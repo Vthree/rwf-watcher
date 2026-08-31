@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.6 — 2026-08-31
+
+- Kill notice also includes `嘗試次數 N` when pullCount is known (live ulatek after 8/8, else last stored ulatek pulls).
+
 ## 1.1.5 — 2026-08-31
 
 - Kill line puts the guild name first: `Echo 擊殺 尾王 Ula'tek（8/8）` (` 世界首殺` still appended when applicable).

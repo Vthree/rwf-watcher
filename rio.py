@@ -17,6 +17,7 @@ from models import (
     Guild,
     GuildSnap,
     Snapshot,
+    boss_by_slug,
     boss_list,
 )
 from watcher import (
@@ -180,13 +181,24 @@ class RioClient:
         killed = killed_union(ranking_killed, live_killed, bosses)
         target = first_undefeated(bosses, killed)
         best: BestProgress | None = None
+        kill_pulls: int | None = None
         if target is not None:
             try:
                 bp = self.live_boss_progress(guild.id, target.slug)
                 best = parse_boss_progress(bp, target, live_privacy)
             except RioError as e:
                 logger.warning("%s boss-progress %s failed: %s", guild.name, target.slug, e)
-        return GuildSnap(killed=killed, best=best)
+        elif LAST_BOSS_SLUG in {s.lower() for s in killed}:
+            # 8/8: still read ulatek pullCount for the kill notice.
+            try:
+                bp = self.live_boss_progress(guild.id, LAST_BOSS_SLUG)
+                ulatek = boss_by_slug(bosses, LAST_BOSS_SLUG)
+                if ulatek is not None:
+                    parsed = parse_boss_progress(bp, ulatek, live_privacy)
+                    kill_pulls = parsed.pulls
+            except RioError as e:
+                logger.warning("%s boss-progress ulatek (killed) failed: %s", guild.name, e)
+        return GuildSnap(killed=killed, best=best, pulls=kill_pulls)
 
 
 def _ranking_defeated(row: dict | None) -> list[str]:

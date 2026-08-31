@@ -222,9 +222,15 @@ def main() -> None:
     last = KillEvent(ECHO, Boss("ulatek", "Ula'tek", 8), 8, world_first=True)
     line = format_kill(last)
     assert line == "Echo 擊殺 尾王 Ula'tek（8/8） 世界首殺"
+    last_p = KillEvent(ECHO, Boss("ulatek", "Ula'tek", 8), 8, world_first=True, pulls=92)
+    assert format_kill(last_p) == (
+        "Echo 擊殺 尾王 Ula'tek（8/8） 世界首殺\n嘗試次數 92"
+    )
     last2 = KillEvent(LIQUID, Boss("ulatek", "Ula'tek", 8), 8, world_first=False)
     assert format_kill(last2) == "Liquid 擊殺 尾王 Ula'tek（8/8）"
     assert "世界首殺" not in format_kill(last2)
+    last2_p = KillEvent(LIQUID, Boss("ulatek", "Ula'tek", 8), 8, world_first=False, pulls=84)
+    assert format_kill(last2_p) == "Liquid 擊殺 尾王 Ula'tek（8/8）\n嘗試次數 84"
 
     # bosses 1–7 are tracked but never posted (only 尾王 Ula'tek)
     prev = _snap(echo_killed=FALLBACK_BOSSES[:6], echo_best=p2)
@@ -268,6 +274,17 @@ def main() -> None:
     curr_wf.guilds[ECHO.id] = GuildSnap(killed=tuple(s for s, _ in FALLBACK_BOSSES), best=None)
     tick = diff_snapshot(prev_clear, curr_wf, BOSSES, GUILDS)
     assert tick.events_kills and tick.events_kills[0].world_first is True
+    assert tick.events_kills[0].pulls == 91
+    wf_msg = tick.message()
+    assert wf_msg and "嘗試次數 91" in wf_msg
+    assert wf_msg.startswith("Echo 擊殺 尾王 Ula'tek（8/8） 世界首殺")
+    live_pulls = _snap(echo_killed=FALLBACK_BOSSES, echo_best=None, world=False)
+    live_pulls.guilds[ECHO.id] = GuildSnap(
+        killed=tuple(s for s, _ in FALLBACK_BOSSES), best=None, pulls=120
+    )
+    tick = diff_snapshot(prev_clear, live_pulls, BOSSES, GUILDS)
+    assert tick.events_kills[0].pulls == 120
+    assert "嘗試次數 120" in (tick.message() or "")
     prev_known = _snap(echo_killed=FALLBACK_BOSSES[:7], echo_best=a, world=True)
     tick = diff_snapshot(prev_known, curr_wf, BOSSES, GUILDS)
     assert tick.events_kills and tick.events_kills[0].world_first is False

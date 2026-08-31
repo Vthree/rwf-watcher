@@ -223,6 +223,7 @@ class KillEvent:
     boss: Boss
     killed_count: int
     world_first: bool = False
+    pulls: int | None = None
 
 
 @dataclass(frozen=True)
@@ -308,7 +309,9 @@ def diff_snapshot(
             if wf_available:
                 world_first = True
                 wf_available = False
-            kills.append(KillEvent(g, boss, count, world_first=world_first))
+            kills.append(
+                KillEvent(g, boss, count, world_first=world_first, pulls=_kill_pulls(old, new))
+            )
     prev_lead = world_lead_ulatek(prev)
     candidates: list[BestEvent] = []
     for g in guilds:
@@ -353,11 +356,26 @@ def coalesce_snapshot(prev: Snapshot | None, curr: Snapshot) -> Snapshot:
     for gid, new in curr.guilds.items():
         old = prev.guilds.get(gid)
         best = coalesce_best(old.best if old else None, new.best)
-        guilds[gid] = GuildSnap(killed=new.killed, best=best)
+        pulls = new.pulls if new.pulls is not None else (old.pulls if old else None)
+        guilds[gid] = GuildSnap(killed=new.killed, best=best, pulls=pulls)
     world = bool(curr.world_ulatek or prev.world_ulatek)
     if any(LAST_BOSS_SLUG in gs.killed for gs in guilds.values()):
         world = True
     return Snapshot(guilds=guilds, world_ulatek=world)
+
+
+def _kill_pulls(old: GuildSnap | None, new: GuildSnap) -> int | None:
+    """Live ulatek pullCount this tick, else last stored ulatek pulls."""
+    if new.pulls is not None:
+        return new.pulls
+    for src in (new.best, old.best if old else None):
+        if src is None:
+            continue
+        if (src.boss_slug or "").lower() == LAST_BOSS_SLUG and src.pulls is not None:
+            return src.pulls
+    if old is not None and old.pulls is not None:
+        return old.pulls
+    return None
 
 
 def format_kill(event: KillEvent) -> str:
@@ -368,8 +386,11 @@ def format_kill(event: KillEvent) -> str:
         line = f"{g} 擊殺 尾王 {b.name}{frac}"
         if event.world_first:
             line += " 世界首殺"
-        return line
-    return f"{g} 擊殺 第{b.index}王 {b.name}{frac}"
+    else:
+        line = f"{g} 擊殺 第{b.index}王 {b.name}{frac}"
+    if event.pulls is not None:
+        line += f"\n嘗試次數 {event.pulls}"
+    return line
 
 
 def format_best(event: BestEvent) -> str:
@@ -417,7 +438,7 @@ def snapshot_to_json(snapshot: Snapshot) -> dict:
                 "phase": gs.best.phase,
                 "pulls": gs.best.pulls,
             }
-        guilds[str(gid)] = {"killed": list(gs.killed), "best": best}
+        guilds[str(gid)] = {"killed": list(gs.killed), "best": best, "pulls": gs.pulls}
     return {
         "world_ulatek": snapshot.world_ulatek,
         "guilds": guilds,
@@ -442,7 +463,11 @@ def snapshot_from_json(data: dict | None) -> Snapshot | None:
                 phase=best_raw.get("phase"),
                 pulls=best_raw.get("pulls"),
             )
-        guilds[int(k)] = GuildSnap(killed=tuple(raw.get("killed") or ()), best=best)
+        guilds[int(k)] = GuildSnap(
+            killed=tuple(raw.get("killed") or ()),
+            best=best,
+            pulls=raw.get("pulls"),
+        )
     return Snapshot(guilds=guilds, world_ulatek=bool(data.get("world_ulatek")))
 
 

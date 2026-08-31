@@ -79,6 +79,7 @@ class BestProgress:
 class GuildSnap:
     killed: tuple[str, ...]
     best: BestProgress | None = None
+    pulls: int | None = None  # ulatek pullCount after 8/8 (kill notice)
 
 
 @dataclass
