@@ -16,7 +16,7 @@ Toggle a channel from the grok bot already in that chat:
 Every 30 seconds it polls the [Raider.io API](https://raider.io) and sends **only to channels that are on**, and **only for last boss Ula'tek**:
 
 - a tracked guild **kills Ula'tek**, or
-- live `progress_display` on Ula'tek is a strictly better remaining HP / later phase.
+- live `progress_display` on Ula'tek is a new **world lead** among Echo / Liquid / Method (strictly better than the current leader). Personal bests that do not take the lead stay silent.
 
 Bosses 1–7 are tracked internally so kills are not missed, but they never post.
 

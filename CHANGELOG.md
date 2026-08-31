@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.4 — 2026-08-31
+
+- Ula'tek `%` notices only when a tracked guild takes the **world lead** among Echo / Liquid / Method (lower remaining than the current leader). Personal bests behind the leader stay silent.
+
 ## 1.1.3 — 2026-08-31
 
 - Poll interval default 30s (`RWF_POLL_SECONDS=30`).

@@ -199,6 +199,24 @@ def is_new_best(old: BestProgress | None, new: BestProgress | None) -> bool:
     return new.remaining < old.remaining - _HP_EPS
 
 
+def ulatek_progress(best: BestProgress | None) -> BestProgress | None:
+    if best is None:
+        return None
+    if (best.boss_slug or "").lower() != LAST_BOSS_SLUG:
+        return None
+    return best
+
+
+def world_lead_ulatek(snapshot: Snapshot) -> BestProgress | None:
+    """Best Ula'tek remaining among tracked guilds (later phase / lower %)."""
+    lead: BestProgress | None = None
+    for gs in snapshot.guilds.values():
+        cand = ulatek_progress(gs.best)
+        if is_new_best(lead, cand):
+            lead = cand
+    return lead
+
+
 @dataclass(frozen=True)
 class KillEvent:
     guild: Guild
@@ -291,12 +309,21 @@ def diff_snapshot(
                 world_first = True
                 wf_available = False
             kills.append(KillEvent(g, boss, count, world_first=world_first))
-        if (
-            new.best
-            and new.best.boss_slug.lower() == LAST_BOSS_SLUG
-            and is_new_best(old.best, new.best)
-        ):
-            bests.append(BestEvent(g, new.best))
+    prev_lead = world_lead_ulatek(prev)
+    candidates: list[BestEvent] = []
+    for g in guilds:
+        gs = curr.guilds.get(g.id)
+        if gs is None:
+            continue
+        cand = ulatek_progress(gs.best)
+        if cand and is_new_best(prev_lead, cand):
+            candidates.append(BestEvent(g, cand))
+    if candidates:
+        winner = candidates[0]
+        for ev in candidates[1:]:
+            if is_new_best(winner.best, ev.best):
+                winner = ev
+        bests.append(winner)
 
     silent = not kills and not bests
     return TickResult(kills, bests, fp, silent=silent)

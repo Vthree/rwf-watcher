@@ -146,6 +146,55 @@ def main() -> None:
     assert "Echo" in msg
     assert "raider.io" not in msg
 
+    # personal best that does not take the world lead stays silent
+    seven = tuple(s for s, _ in FALLBACK_BOSSES[:7])
+    echo_lead = _best(remaining=73.58, display="73.58%")
+    prev_lead_snap = _snap(
+        echo_killed=FALLBACK_BOSSES[:7],
+        echo_best=echo_lead,
+        extra={LIQUID.id: GuildSnap(killed=seven, best=_best(remaining=75.14, display="75.14%"))},
+    )
+    liquid_not_enough = _snap(
+        echo_killed=FALLBACK_BOSSES[:7],
+        echo_best=echo_lead,
+        extra={LIQUID.id: GuildSnap(killed=seven, best=_best(remaining=74.0, display="74%"))},
+    )
+    tick = diff_snapshot(prev_lead_snap, liquid_not_enough, BOSSES, GUILDS)
+    assert tick.silent is True
+    assert tick.events_best == []
+
+    liquid_takes_lead = _snap(
+        echo_killed=FALLBACK_BOSSES[:7],
+        echo_best=echo_lead,
+        extra={LIQUID.id: GuildSnap(killed=seven, best=_best(remaining=73.0, display="73%"))},
+    )
+    tick = diff_snapshot(prev_lead_snap, liquid_takes_lead, BOSSES, GUILDS)
+    assert tick.silent is False
+    assert len(tick.events_best) == 1
+    assert tick.events_best[0].guild.id == LIQUID.id
+    lead_msg = tick.message()
+    assert lead_msg and lead_msg.startswith("!best")
+    assert "Liquid" in lead_msg
+    assert "Echo" not in lead_msg
+
+    echo_extends = _snap(
+        echo_killed=FALLBACK_BOSSES[:7],
+        echo_best=_best(remaining=72.0, display="72%"),
+        extra={LIQUID.id: GuildSnap(killed=seven, best=_best(remaining=75.14, display="75.14%"))},
+    )
+    tick = diff_snapshot(prev_lead_snap, echo_extends, BOSSES, GUILDS)
+    assert tick.events_best and tick.events_best[0].guild.id == ECHO.id
+
+    both_beat = _snap(
+        echo_killed=FALLBACK_BOSSES[:7],
+        echo_best=_best(remaining=72.0, display="72%"),
+        extra={LIQUID.id: GuildSnap(killed=seven, best=_best(remaining=72.5, display="72.5%"))},
+    )
+    tick = diff_snapshot(prev_lead_snap, both_beat, BOSSES, GUILDS)
+    assert len(tick.events_best) == 1
+    assert tick.events_best[0].guild.id == ECHO.id
+    assert tick.events_best[0].best.remaining == 72.0
+
     # HP went up → silent, coalesce keeps lower
     worse = _snap(echo_best=_best(remaining=80.0, display="80%"))
     tick = diff_snapshot(s1, worse, BOSSES, GUILDS)
@@ -158,7 +207,8 @@ def main() -> None:
     tick = diff_snapshot(s1, hid_snap, BOSSES, GUILDS)
     assert tick.silent is True
     assert coalesce_best(a, hidden).remaining == 76.03
-    tick = diff_snapshot(hid_snap, s1, BOSSES, GUILDS)
+    stored_hidden = coalesce_snapshot(s1, hid_snap)
+    tick = diff_snapshot(stored_hidden, s1, BOSSES, GUILDS)
     assert tick.silent is True
     baseline = coalesce_best(hidden, a)
     assert baseline.kind == "numeric" and baseline.remaining == 76.03
