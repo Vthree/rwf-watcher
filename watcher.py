@@ -209,8 +209,16 @@ def is_new_best(old: BestProgress | None, new: BestProgress | None) -> bool:
 
 
 def overall_confirms(old: BestProgress | None, new: BestProgress | None) -> bool:
-    """Reject current-pull HP dips: display can drop while API bestPercent stays put."""
+    """Reject current-pull HP dips: display can drop while API bestPercent stays put.
+
+    A later phase (hidden P4, I1, …) is real progression even if bestPercent
+    has not moved yet. Same-phase remaining still needs overall to improve.
+    """
     if new is None or old is None:
+        return True
+    old_phase = 0.0 if old.phase is None else old.phase
+    new_phase = 0.0 if new.phase is None else new.phase
+    if new_phase > old_phase + _HP_EPS:
         return True
     if old.overall is None or new.overall is None:
         return True

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.3 — 2026-09-01
+
+- Best: a later phase (hidden P4, I1, …) notifies even if API `bestPercent` has not moved. Same-phase current-pull dips still need overall to improve.
+
 ## 1.2.2 — 2026-09-01
 
 - Best: ignore live `progress_display` dips while API `bestPercent` is unchanged (current-pull HP, e.g. 06:39 false Echo sub-70% P3). Heal stored spikes when overall matches and remaining recovered.

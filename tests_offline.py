@@ -233,6 +233,22 @@ def main() -> None:
     assert tick.silent is False
     assert "P3" in (tick.message() or "")
 
+    # hidden P4: new phase even if bestPercent has not dropped yet
+    p4_open = _best(remaining=99.0, display="99% P4", phase=4, overall=18.85, pulls=161)
+    assert is_new_best(p3_lead, p4_open) is True
+    assert overall_confirms(p3_lead, p4_open) is True
+    curr_p4 = _snap(echo_killed=FALLBACK_BOSSES[:7], echo_best=p4_open)
+    tick = diff_snapshot(prev_p3, curr_p4, BOSSES, GUILDS)
+    assert tick.silent is False
+    p4_msg = tick.message() or ""
+    assert "P4" in p4_msg
+    assert "剩餘 99%" in p4_msg
+    # same P4 current-pull dip still blocked
+    p4_dip = _best(remaining=8.0, display="8% P4", phase=4, overall=18.85, pulls=162)
+    assert overall_confirms(p4_open, p4_dip) is False
+    tick = diff_snapshot(curr_p4, _snap(echo_killed=FALLBACK_BOSSES[:7], echo_best=p4_dip), BOSSES, GUILDS)
+    assert tick.silent is True
+
     # HP went up → silent, coalesce keeps lower
     worse = _snap(echo_best=_best(remaining=80.0, display="80%"))
     tick = diff_snapshot(s1, worse, BOSSES, GUILDS)
