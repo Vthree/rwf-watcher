@@ -32,7 +32,7 @@ logger = logging.getLogger("rwf")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 
 
 def _int_env(name: str, default: int) -> int:
@@ -101,7 +101,7 @@ def main() -> int:
                 if tick.silent or not msg:
                     logger.info("silent fp=%s world_ulatek=%s", tick.fingerprint, curr.world_ulatek)
                 else:
-                    logger.info("notify %s chars fp=%s", len(msg), tick.fingerprint)
+                    logger.info("notify %s chars fp=%s body=%r", len(msg), tick.fingerprint, msg)
                     dests = load_dests(feed="rwf")
                     fanout(
                         msg,

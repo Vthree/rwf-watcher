@@ -93,6 +93,7 @@ def classify_best(
     error: object,
     privacy: dict | None,
     pull_count: int | None,
+    overall: float | None = None,
 ) -> BestProgress:
     """Classify live boss-progress. Hidden ≠ 'not started yet'."""
     return _classify_best(
@@ -102,6 +103,7 @@ def classify_best(
         error=error,
         privacy=privacy,
         pull_count=pull_count,
+        overall=overall,
     )
 
 
@@ -113,22 +115,30 @@ def _classify_best(
     error: object,
     privacy: dict | None,
     pull_count: int | None,
+    overall: float | None = None,
 ) -> BestProgress:
     pulls = pull_count if isinstance(pull_count, int) else None
     if error or privacy_hides_percent(privacy):
-        return BestProgress(boss_slug, boss_name, "hidden", _disp(display), None, None, pulls)
+        return BestProgress(boss_slug, boss_name, "hidden", _disp(display), None, None, pulls, overall)
     raw = (display or "").strip()
     if raw.lower() in _HIDDEN_DISPLAYS and raw.lower() not in {"", "null", "none"}:
-        return BestProgress(boss_slug, boss_name, "hidden", raw, None, None, pulls)
+        return BestProgress(boss_slug, boss_name, "hidden", raw, None, None, pulls, overall)
     phase, remaining = parse_progress_display(raw if raw else None)
     if remaining is not None:
         return BestProgress(
-            boss_slug, boss_name, "numeric", raw or None, remaining, phase, pulls
+            boss_slug,
+            boss_name,
+            "numeric",
+            raw or None,
+            remaining,
+            phase,
+            pulls,
+            overall,
         )
     if (pulls or 0) > 0:
         # Pulling but no number → treat as hidden (Liquid-style).
-        return BestProgress(boss_slug, boss_name, "hidden", raw or None, None, None, pulls)
-    return BestProgress(boss_slug, boss_name, "none", None, None, None, pulls or 0)
+        return BestProgress(boss_slug, boss_name, "hidden", raw or None, None, None, pulls, overall)
+    return BestProgress(boss_slug, boss_name, "none", None, None, None, pulls or 0, overall)
 
 
 def _disp(display: str | None) -> str | None:
@@ -187,16 +197,24 @@ def is_new_best(old: BestProgress | None, new: BestProgress | None) -> bool:
         return True
     if (old.display or "") == (new.display or ""):
         return False
-    if old.phase is not None and new.phase is not None:
-        if new.phase > old.phase + _HP_EPS:
-            return True
-        if new.phase < old.phase - _HP_EPS:
-            return False
-    elif old.phase is not None and new.phase is None:
+    old_phase = 0.0 if old.phase is None else old.phase
+    new_phase = 0.0 if new.phase is None else new.phase
+    if new_phase > old_phase + _HP_EPS:
+        return True
+    if new_phase < old_phase - _HP_EPS:
         return False
     if old.remaining is None:
         return True
     return new.remaining < old.remaining - _HP_EPS
+
+
+def overall_confirms(old: BestProgress | None, new: BestProgress | None) -> bool:
+    """Reject current-pull HP dips: display can drop while API bestPercent stays put."""
+    if new is None or old is None:
+        return True
+    if old.overall is None or new.overall is None:
+        return True
+    return new.overall < old.overall - _HP_EPS
 
 
 def ulatek_progress(best: BestProgress | None) -> BestProgress | None:
@@ -319,7 +337,7 @@ def diff_snapshot(
         if gs is None:
             continue
         cand = ulatek_progress(gs.best)
-        if cand and is_new_best(prev_lead, cand):
+        if cand and is_new_best(prev_lead, cand) and overall_confirms(prev_lead, cand):
             candidates.append(BestEvent(g, cand))
     if candidates:
         winner = candidates[0]
@@ -340,7 +358,19 @@ def coalesce_best(old: BestProgress | None, new: BestProgress | None) -> BestPro
         return new
     if (new.boss_slug or "").lower() != (old.boss_slug or "").lower():
         return new
-    if is_new_best(old, new):
+    if is_new_best(old, new) and overall_confirms(old, new):
+        return new
+    # Same overall bestPercent but live remaining recovered → stored was a pull dip.
+    if (
+        old.kind == "numeric"
+        and new.kind == "numeric"
+        and old.overall is not None
+        and new.overall is not None
+        and abs(old.overall - new.overall) <= 0.5
+        and old.remaining is not None
+        and new.remaining is not None
+        and new.remaining > old.remaining + _HP_EPS
+    ):
         return new
     if old.kind == "numeric" and new.kind != "numeric":
         return old
@@ -437,6 +467,7 @@ def snapshot_to_json(snapshot: Snapshot) -> dict:
                 "remaining": gs.best.remaining,
                 "phase": gs.best.phase,
                 "pulls": gs.best.pulls,
+                "overall": gs.best.overall,
             }
         guilds[str(gid)] = {"killed": list(gs.killed), "best": best, "pulls": gs.pulls}
     return {
@@ -462,6 +493,7 @@ def snapshot_from_json(data: dict | None) -> Snapshot | None:
                 remaining=best_raw.get("remaining"),
                 phase=best_raw.get("phase"),
                 pulls=best_raw.get("pulls"),
+                overall=best_raw.get("overall"),
             )
         guilds[int(k)] = GuildSnap(
             killed=tuple(raw.get("killed") or ()),

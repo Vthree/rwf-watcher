@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.2 — 2026-09-01
+
+- Best: ignore live `progress_display` dips while API `bestPercent` is unchanged (current-pull HP, e.g. 06:39 false Echo sub-70% P3). Heal stored spikes when overall matches and remaining recovered.
+
 ## 1.2.1 — 2026-08-31
 
 - TW kill copy uses 四王 (not 第4王). Last boss stays 尾王.

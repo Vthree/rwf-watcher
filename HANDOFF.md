@@ -16,7 +16,7 @@ Grok bot 路由規則仍以各 host 的 [AGENTS.md](https://github.com/Vthree/te
 
 ## Current snapshot（2026-08-31）
 
-**Version: v1.2.1.** GitHub: [Vthree/rwf-watcher](https://github.com/Vthree/rwf-watcher)
+**Version: v1.2.2.** GitHub: [Vthree/rwf-watcher](https://github.com/Vthree/rwf-watcher)
 
 | 項目 | 現況 — 未經明示不要改 |
 |------|----------------------|
@@ -25,7 +25,7 @@ Grok bot 路由規則仍以各 host 的 [AGENTS.md](https://github.com/Vthree/te
 | 平台 | Telegram + Discord。**LINE 不做**（Push 配額） |
 | 輪詢 | `RWF_POLL_SECONDS=30`（程式下限也是 30） |
 | 只發尾王 | RWF 只報 **Ula'tek** 新 best 與擊殺。1–7 王內部追蹤、不發訊。台服 feed 則報該次里程碑那隻王 |
-| 新 best | 只報三家裡的**世界領先**尾王 `%`（比目前領先者剩餘血量更低／階段更後）。落後的個人 best 不報。live `progress_display`；不用排行榜 `bestPercent` |
+| 新 best | 只報三家裡的**世界領先**尾王 `%`（階段更後，或同階段剩餘更低）。落後的個人 best 不報。用 live `progress_display` 顯示；**必須** API `bestPercent` 也變好，才算數（避免當下這拉血量誤報） |
 | 擊殺 | rankings `encountersDefeated` ∪ live `isDefeated` |
 | Hidden | Liquid hidden 血量不報變化，擊殺仍報 |
 | 指紋 | 無時間戳。第一次 poll 只寫 state、不洗版 |

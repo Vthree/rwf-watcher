@@ -37,6 +37,7 @@ from watcher import (
     format_best,
     format_kill,
     is_new_best,
+    overall_confirms,
     killed_union,
     parse_progress_display,
     snapshot_from_json,
@@ -59,8 +60,9 @@ def _best(
     remaining=76.03,
     phase=None,
     pulls=91,
+    overall=None,
 ) -> BestProgress:
-    return BestProgress(slug, name, kind, display, remaining, phase, pulls)
+    return BestProgress(slug, name, kind, display, remaining, phase, pulls, overall)
 
 
 def _snap(echo_killed=None, echo_best=None, world=False, extra=None) -> Snapshot:
@@ -205,6 +207,31 @@ def main() -> None:
     assert len(tick.events_best) == 1
     assert tick.events_best[0].guild.id == ECHO.id
     assert tick.events_best[0].best.remaining == 72.0
+
+    # later phase is better than unphased even if remaining % is higher
+    unphased = _best(remaining=73.58, display="73.58%", overall=73.58)
+    p3_high = _best(remaining=75.4, display="75.4% P3", phase=3, overall=18.85)
+    assert is_new_best(unphased, p3_high) is True
+
+    # current-pull dip: display remaining drops but API bestPercent does not
+    p3_lead = _best(remaining=75.4, display="75.4% P3", phase=3, overall=18.85, pulls=158)
+    p3_dip = _best(remaining=12.0, display="12% P3", phase=3, overall=18.85, pulls=159)
+    assert is_new_best(p3_lead, p3_dip) is True
+    assert overall_confirms(p3_lead, p3_dip) is False
+    prev_p3 = _snap(echo_killed=FALLBACK_BOSSES[:7], echo_best=p3_lead)
+    curr_dip = _snap(echo_killed=FALLBACK_BOSSES[:7], echo_best=p3_dip)
+    tick = diff_snapshot(prev_p3, curr_dip, BOSSES, GUILDS)
+    assert tick.silent is True
+    healed = coalesce_best(p3_dip, p3_lead)
+    assert healed is not None and healed.remaining == 75.4
+
+    # real new best: display and overall both improve
+    p3_real = _best(remaining=74.0, display="74% P3", phase=3, overall=18.4, pulls=160)
+    assert overall_confirms(p3_lead, p3_real) is True
+    curr_real = _snap(echo_killed=FALLBACK_BOSSES[:7], echo_best=p3_real)
+    tick = diff_snapshot(prev_p3, curr_real, BOSSES, GUILDS)
+    assert tick.silent is False
+    assert "P3" in (tick.message() or "")
 
     # HP went up → silent, coalesce keeps lower
     worse = _snap(echo_best=_best(remaining=80.0, display="80%"))

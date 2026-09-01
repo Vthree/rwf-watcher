@@ -69,6 +69,7 @@ class BestProgress:
     remaining: float | None
     phase: float | None
     pulls: int | None
+    overall: float | None = None  # API bestPercent 0-100; guards current-pull dips
 
     @property
     def hidden(self) -> bool:

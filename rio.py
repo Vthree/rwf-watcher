@@ -244,6 +244,9 @@ def parse_boss_progress(
     pulls = data.get("pullCount")
     if pulls is None:
         pulls = data.get("pull_count")
+    overall = data.get("bestPercent")
+    if not isinstance(overall, (int, float)):
+        overall = None
     return _classify_best(
         boss_slug=boss.slug,
         boss_name=boss.name,
@@ -251,4 +254,5 @@ def parse_boss_progress(
         error=data.get("error"),
         privacy=privacy if isinstance(privacy, dict) else None,
         pull_count=int(pulls) if isinstance(pulls, (int, float)) else None,
+        overall=float(overall) if overall is not None else None,
     )
