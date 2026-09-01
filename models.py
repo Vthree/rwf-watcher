@@ -70,6 +70,7 @@ class BestProgress:
     phase: float | None
     pulls: int | None
     overall: float | None = None  # API bestPercent 0-100; guards current-pull dips
+    phase_label: str | None = None  # P3 / I1 / P4 from API; intermissions are phase x.5
 
     @property
     def hidden(self) -> bool:

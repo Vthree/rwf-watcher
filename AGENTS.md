@@ -10,7 +10,7 @@ Sidecar for WoW RWF notices (Echo / Liquid / Method, 《烈毒之淵》 Mythic) 
 
 - Raider.io **API only** (`access_key` from env). No WCL / PullCount HTML.
 - Kill = rankings `encountersDefeated` ∪ live raid-progress `isDefeated`.
-- New best posted only for last boss **Ula'tek**, world lead among Echo/Liquid/Method. A later phase (hidden P4) notifies even if `bestPercent` lags. Same-phase remaining is gated by `bestPercent` so a current-pull dip is not a best.
+- New best posted only for last boss **Ula'tek**, world lead among Echo/Liquid/Method. Phase order from API `phase`: P1=1, P2=2, **I1=2.5**, P3=3, P4=4. Display uses `phase_label` (`I1` not `P2.5`). Later phase notifies even if `bestPercent` lags; same-phase remaining is gated by `bestPercent`.
 - Posted kills: **Ula'tek only**. Earlier bosses are still tracked in state, never sent. After 8/8, still read ulatek `pullCount` for the kill line.
 - Never use ranking `bestPercent` or `boss=latest` for kills.
 - Hidden HP: no percent alerts; still report kills.

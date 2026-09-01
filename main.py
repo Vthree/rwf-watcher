@@ -32,7 +32,7 @@ logger = logging.getLogger("rwf")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-VERSION = "1.2.3"
+VERSION = "1.2.4"
 
 
 def _int_env(name: str, default: int) -> int:

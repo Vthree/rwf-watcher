@@ -94,6 +94,8 @@ def classify_best(
     privacy: dict | None,
     pull_count: int | None,
     overall: float | None = None,
+    api_phase: float | None = None,
+    api_phase_label: str | None = None,
 ) -> BestProgress:
     """Classify live boss-progress. Hidden ≠ 'not started yet'."""
     return _classify_best(
@@ -104,6 +106,8 @@ def classify_best(
         privacy=privacy,
         pull_count=pull_count,
         overall=overall,
+        api_phase=api_phase,
+        api_phase_label=api_phase_label,
     )
 
 
@@ -116,14 +120,22 @@ def _classify_best(
     privacy: dict | None,
     pull_count: int | None,
     overall: float | None = None,
+    api_phase: float | None = None,
+    api_phase_label: str | None = None,
 ) -> BestProgress:
     pulls = pull_count if isinstance(pull_count, int) else None
+    label = (api_phase_label or "").strip() or None
     if error or privacy_hides_percent(privacy):
-        return BestProgress(boss_slug, boss_name, "hidden", _disp(display), None, None, pulls, overall)
+        return BestProgress(
+            boss_slug, boss_name, "hidden", _disp(display), None, None, pulls, overall, label
+        )
     raw = (display or "").strip()
     if raw.lower() in _HIDDEN_DISPLAYS and raw.lower() not in {"", "null", "none"}:
-        return BestProgress(boss_slug, boss_name, "hidden", raw, None, None, pulls, overall)
+        return BestProgress(boss_slug, boss_name, "hidden", raw, None, None, pulls, overall, label)
     phase, remaining = parse_progress_display(raw if raw else None)
+    # Display regex only sees "P3". I1 must come from API phase (intermission = x.5).
+    if api_phase is not None:
+        phase = float(api_phase)
     if remaining is not None:
         return BestProgress(
             boss_slug,
@@ -134,11 +146,16 @@ def _classify_best(
             phase,
             pulls,
             overall,
+            label,
         )
     if (pulls or 0) > 0:
         # Pulling but no number → treat as hidden (Liquid-style).
-        return BestProgress(boss_slug, boss_name, "hidden", raw or None, None, None, pulls, overall)
-    return BestProgress(boss_slug, boss_name, "none", None, None, None, pulls or 0, overall)
+        return BestProgress(
+            boss_slug, boss_name, "hidden", raw or None, None, None, pulls, overall, label
+        )
+    return BestProgress(
+        boss_slug, boss_name, "none", None, None, None, pulls or 0, overall, label
+    )
 
 
 def _disp(display: str | None) -> str | None:
@@ -450,6 +467,9 @@ def format_remaining(best: BestProgress) -> str:
     if best.remaining is None:
         return best.display or ""
     pct = _fmt_num(best.remaining)
+    label = (best.phase_label or "").strip()
+    if label:
+        return f"{label} 剩餘 {pct}%"
     if best.phase is not None:
         return f"P{_fmt_num(best.phase)} 剩餘 {pct}%"
     return f"剩餘 {pct}%"
@@ -476,6 +496,7 @@ def snapshot_to_json(snapshot: Snapshot) -> dict:
                 "phase": gs.best.phase,
                 "pulls": gs.best.pulls,
                 "overall": gs.best.overall,
+                "phase_label": gs.best.phase_label,
             }
         guilds[str(gid)] = {"killed": list(gs.killed), "best": best, "pulls": gs.pulls}
     return {
@@ -502,6 +523,7 @@ def snapshot_from_json(data: dict | None) -> Snapshot | None:
                 phase=best_raw.get("phase"),
                 pulls=best_raw.get("pulls"),
                 overall=best_raw.get("overall"),
+                phase_label=best_raw.get("phase_label"),
             )
         guilds[int(k)] = GuildSnap(
             killed=tuple(raw.get("killed") or ()),

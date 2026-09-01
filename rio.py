@@ -247,6 +247,14 @@ def parse_boss_progress(
     overall = data.get("bestPercent")
     if not isinstance(overall, (int, float)):
         overall = None
+    api_phase = data.get("phase")
+    if not isinstance(api_phase, (int, float)):
+        api_phase = None
+    api_label = data.get("phase_label") or data.get("phaseLabel")
+    if not isinstance(api_label, str) or not api_label.strip():
+        api_label = None
+    else:
+        api_label = api_label.strip()
     return _classify_best(
         boss_slug=boss.slug,
         boss_name=boss.name,
@@ -255,4 +263,6 @@ def parse_boss_progress(
         privacy=privacy if isinstance(privacy, dict) else None,
         pull_count=int(pulls) if isinstance(pulls, (int, float)) else None,
         overall=float(overall) if overall is not None else None,
+        api_phase=float(api_phase) if api_phase is not None else None,
+        api_phase_label=api_label,
     )

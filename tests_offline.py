@@ -61,8 +61,9 @@ def _best(
     phase=None,
     pulls=91,
     overall=None,
+    phase_label=None,
 ) -> BestProgress:
-    return BestProgress(slug, name, kind, display, remaining, phase, pulls, overall)
+    return BestProgress(slug, name, kind, display, remaining, phase, pulls, overall, phase_label)
 
 
 def _snap(echo_killed=None, echo_best=None, world=False, extra=None) -> Snapshot:
@@ -365,6 +366,55 @@ def main() -> None:
     assert parsed.remaining == 4.44
     assert parsed.phase == 3
     assert parsed.pulls == 393
+
+    ulatek_boss = [b for b in BOSSES if b.slug == "ulatek"][0]
+    i1_parsed = parse_boss_progress(
+        {
+            "progress_display": "82.06% I1",
+            "bestPercent": 45.52,
+            "phase": 2.5,
+            "phase_label": "I1",
+            "pullCount": 99,
+            "isDefeated": False,
+            "error": None,
+        },
+        ulatek_boss,
+        {"share_live_raid_percents": "all"},
+    )
+    assert i1_parsed.phase == 2.5
+    assert i1_parsed.phase_label == "I1"
+    assert i1_parsed.remaining == 82.06
+    assert i1_parsed.overall == 45.52
+    assert parse_progress_display("82.06% I1") == (None, 82.06)
+
+    p2b = _best(remaining=10.0, display="10% P2", phase=2, overall=80.0, phase_label="P2")
+    i1b = _best(
+        remaining=82.06, display="82.06% I1", phase=2.5, overall=45.52, phase_label="I1"
+    )
+    p3e = _best(
+        remaining=75.4, display="75.4% P3", phase=3, overall=18.85, phase_label="P3"
+    )
+    assert is_new_best(p2b, i1b) is True
+    assert is_new_best(i1b, p2b) is False
+    assert is_new_best(i1b, p3e) is True
+    assert is_new_best(p3e, i1b) is False
+    i1_text = format_best(BestEvent(METHOD, i1b))
+    assert "I1 剩餘 82.06%" in i1_text
+    assert "P2.5" not in i1_text
+
+    prev_p3_lead = _snap(echo_killed=FALLBACK_BOSSES[:7], echo_best=p3e)
+    method_i1 = _snap(
+        echo_killed=FALLBACK_BOSSES[:7],
+        echo_best=p3e,
+        extra={
+            METHOD.id: GuildSnap(
+                killed=tuple(s for s, _ in FALLBACK_BOSSES[:7]),
+                best=i1b,
+            )
+        },
+    )
+    tick = diff_snapshot(prev_p3_lead, method_i1, BOSSES, GUILDS)
+    assert tick.silent is True
 
     hidden_parsed = parse_boss_progress(
         {"progress_display": "hidden", "pullCount": 84, "error": None},

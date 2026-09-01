@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.4 — 2026-09-01
+
+- Last-boss phases: use API `phase` / `phase_label` so **I1 = 2.5** (between P2 and P3), not unphased. Notices print `I1` not `P2.5`.
+
 ## 1.2.3 — 2026-09-01
 
 - Best: a later phase (hidden P4, I1, …) notifies even if API `bestPercent` has not moved. Same-phase current-pull dips still need overall to improve.
