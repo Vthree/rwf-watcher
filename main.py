@@ -1,5 +1,6 @@
 """
-RWF sidecar: poll Raider.io, notify Telegram + Discord on kill / new best.
+TW sidecar: poll Raider.io Taiwan rankings, notify Telegram + Discord on
+region-first kills. World RWF (Echo / Liquid / Method) is not polled.
 
 Not part of grok-bot-core. No LLM. LINE is intentionally omitted.
 """
@@ -14,15 +15,12 @@ import time
 from control import start_control_server
 from destinations import load as load_dests
 from env_utils import env_secret
-from models import GUILDS, RAID_SLUG, boss_list
+from models import RAID_SLUG, boss_list
 from notify import fanout
 from rio import RioClient, RioError
-from state import load as load_state
 from state import load_tw
-from state import save as save_state
 from state import save_tw
 from tw import coalesce_tw, diff_tw, tw_region_max
-from watcher import coalesce_snapshot, diff_snapshot, fingerprint
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -32,7 +30,7 @@ logger = logging.getLogger("rwf")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-VERSION = "1.2.4"
+VERSION = "1.3.0"
 
 
 def _int_env(name: str, default: int) -> int:
@@ -58,17 +56,13 @@ def main() -> int:
         return 1
 
     start_control_server()
-    dests = load_dests(feed="rwf")
     tw_dests = load_dests(feed="tw")
     logger.info(
-        "rwf-watcher %s raid=%s guilds=%s poll=%ss dry_run=%s dest_tg=%s dest_dc=%s tw_tg=%s tw_dc=%s",
+        "rwf-watcher %s raid=%s poll=%ss dry_run=%s world_rwf=off tw_tg=%s tw_dc=%s",
         VERSION,
         RAID_SLUG,
-        ",".join(g.name for g in GUILDS),
         interval,
         dry_run,
-        dests.get("telegram") or [],
-        dests.get("discord") or [],
         tw_dests.get("telegram") or [],
         tw_dests.get("discord") or [],
     )
@@ -82,11 +76,6 @@ def main() -> int:
             bosses = boss_list()
         logger.info("bosses: %s", ", ".join(f"{b.index}:{b.slug}" for b in bosses))
 
-        prev = load_state()
-        if prev is None:
-            logger.info("no prior state; first poll will seed and stay silent")
-        else:
-            logger.info("loaded state fp=%s", fingerprint(prev))
         tw_prev = load_tw()
         if tw_prev is None:
             logger.info("no prior TW state; first TW poll will seed and stay silent")
@@ -94,28 +83,6 @@ def main() -> int:
             logger.info("loaded TW state region_max=%s", tw_prev.region_max)
 
         while True:
-            try:
-                curr = client.fetch_snapshot(bosses)
-                tick = diff_snapshot(prev, curr, bosses, GUILDS)
-                msg = tick.message()
-                if tick.silent or not msg:
-                    logger.info("silent fp=%s world_ulatek=%s", tick.fingerprint, curr.world_ulatek)
-                else:
-                    logger.info("notify %s chars fp=%s body=%r", len(msg), tick.fingerprint, msg)
-                    dests = load_dests(feed="rwf")
-                    fanout(
-                        msg,
-                        telegram_token=tg_token,
-                        discord_token=dc_token,
-                        telegram_chat_ids=dests.get("telegram") or [],
-                        discord_channel_ids=dests.get("discord") or [],
-                        dry_run=dry_run,
-                    )
-                stored = coalesce_snapshot(prev, curr)
-                save_state(stored)
-                prev = stored
-            except Exception:
-                logger.exception("poll failed")
             try:
                 tw_curr = client.fetch_tw_snapshot()
                 tw_tick = diff_tw(tw_prev, tw_curr, bosses)

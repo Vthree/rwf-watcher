@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0 — 2026-09-01
+
+- World RWF (Echo / Liquid / Method) polling **off**. TW feed only.
+- TW kill line always appends `台服首殺`.
+
 ## 1.2.4 — 2026-09-01
 
 - Last-boss phases: use API `phase` / `phase_label` so **I1 = 2.5** (between P2 and P3), not unphased. Notices print `I1` not `P2.5`.

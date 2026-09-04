@@ -172,10 +172,10 @@ def format_tw_kill(event: TwKillEvent) -> str:
     b = event.boss
     frac = f"（{event.killed_count}/{TOTAL_BOSSES}）"
     if b.slug.lower() == LAST_BOSS_SLUG:
-        line = f"台服 {event.guild_name} 擊殺 尾王 {b.name}{frac}"
+        line = f"台服 {event.guild_name} 擊殺 尾王 {b.name}{frac} 台服首殺"
     else:
         ordinal = _ZH_ORDINAL.get(b.index, str(b.index))
-        line = f"台服 {event.guild_name} 擊殺 {ordinal}王 {b.name}{frac}"
+        line = f"台服 {event.guild_name} 擊殺 {ordinal}王 {b.name}{frac} 台服首殺"
     if event.pulls is not None:
         line += f"\n嘗試次數 {event.pulls}"
     return line

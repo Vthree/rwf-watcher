@@ -1,35 +1,19 @@
 # rwf-watcher
 
-WoW Race to World First notifier for **Echo / Liquid / Method** on *The Venomous Abyss* Mythic（《烈毒之淵》）.
+Taiwan Mythic progress notifier for *The Venomous Abyss*（《烈毒之淵》）. World RWF (Echo / Liquid / Method) polling is **off**.
 
 Independent sidecar. **Not** part of `grok-bot-core`. No LLM. LINE is omitted (Push quota).
 
-Toggle a channel from the grok bot already in that chat:
-
-```text
-/rwfnotifi on
-/rwfnotifi off
-```
-
-(`!rwfnotifi` on Discord also works. Alias `/rwfnotify`.)
-
-Toggle Taiwan overall-progress kills separately:
+Toggle Taiwan overall-progress kills from the grok bot already in that chat:
 
 ```text
 /twnotifi on
 /twnotifi off
 ```
 
-Every 30 seconds it polls the [Raider.io API](https://raider.io) and sends **only to channels that are on**.
+Every 30 seconds it polls the [Raider.io API](https://raider.io) `region=tw` and sends **only to channels that are on**.
 
-RWF (Echo / Liquid / Method), **only for last boss Ula'tek**:
-
-- a tracked guild **kills Ula'tek**, or
-- live `progress_display` on Ula'tek is a new **world lead** among Echo / Liquid / Method (strictly better than the current leader). Personal bests that do not take the lead stay silent.
-
-Bosses 1–7 are tracked internally so kills are not missed, but they never post.
-
-Taiwan feed (independent dest list): **no named guilds**. Notify only when TW Mythic **overall max N/8** goes up. No best / HP lines. First poll seeds and stays silent.
+Taiwan feed: **no named guilds**. Notify only when TW Mythic **overall max N/8** goes up (台服首殺). No best / HP lines. First poll seeds and stays silent.
 
 Quiet otherwise. `[SILENT]` is never posted to chat.
 
@@ -43,7 +27,7 @@ Quiet otherwise. `[SILENT]` is never posted to chat.
 | World first | Last boss Ula'tek may say `世界首殺` only if previous state had no world ulatek kill. |
 | Fingerprint | Kills + best display. **No timestamps.** |
 | Copy | Best starts with `!best`. Kill is `{guild} 擊殺 尾王 …（8/8）` then `嘗試次數 N`. `pulls` → **嘗試次數** (never 「拉」). No URL. |
-| Taiwan | Rankings `region=tw`. Notify when max defeated count increases. No best. Copy: `台服 {guild} 擊殺 四王 …（4/8）`. |
+| Taiwan | Rankings `region=tw`. Notify when max defeated count increases. No best. Copy: `台服 {guild} 擊殺 四王 …（4/8） 台服首殺`. |
 
 ## Env
 
@@ -52,7 +36,7 @@ Quiet otherwise. `[SILENT]` is never posted to chat.
 | `RIO_ACCESS_KEY` | yes | Also accepts `RAIDERIO_ACCESS_KEY` / `RIO_API_KEY` |
 | `TELEGRAM_BOT_TOKEN` | for TG send | Same token as telegram-grok-bot |
 | `DISCORD_BOT_TOKEN` | for DC send | Same token as discord-grok-bot |
-| `RWF_CONTROL_TOKEN` | yes | Shared with grok bots so `/rwfnotifi` can toggle dests |
+| `RWF_CONTROL_TOKEN` | yes | Shared with grok bots so `/twnotifi` can toggle dests |
 | `PORT` | no | Control HTTP (default 8080) |
 | `RWF_POLL_SECONDS` | no | Default `30` |
 | `RWF_STATE_PATH` | no | Default `/data/rwf-state.json` on Railway |
