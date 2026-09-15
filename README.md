@@ -27,7 +27,7 @@ Quiet otherwise. `[SILENT]` is never posted to chat.
 | World first | Last boss Ula'tek may say `世界首殺` only if previous state had no world ulatek kill. |
 | Fingerprint | Kills + best display. **No timestamps.** |
 | Copy | Best starts with `!best`. Kill is `{guild} 擊殺 尾王 …（8/8）` then `嘗試次數 N`. `pulls` → **嘗試次數** (never 「拉」). No URL. |
-| Taiwan | Kills: WCL TW Mythic ∪ RIO. From 六王: first 3 kills (`台服首殺` on place 1 only). 尾王: + TW-lead `!best`. |
+| Taiwan | Kills every 30s via WCL v1. Best % via v2 progressRace (cached). From 六王: first 3 kills. 尾王: + TW-lead `!best`. |
 
 ## Env
 

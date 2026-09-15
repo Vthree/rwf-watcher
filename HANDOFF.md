@@ -16,7 +16,7 @@ Grok bot 路由規則仍以各 host 的 [AGENTS.md](https://github.com/Vthree/te
 
 ## Current snapshot（2026-09-15）
 
-**Version: v1.6.0.** GitHub: [Vthree/rwf-watcher](https://github.com/Vthree/rwf-watcher)
+**Version: v1.6.1.** GitHub: [Vthree/rwf-watcher](https://github.com/Vthree/rwf-watcher)
 
 | 項目 | 現況 — 未經明示不要改 |
 |------|----------------------|
@@ -26,7 +26,7 @@ Grok bot 路由規則仍以各 host 的 [AGENTS.md](https://github.com/Vthree/te
 | 輪詢 | `RWF_POLL_SECONDS=30`（程式下限也是 30） |
 | 只發尾王 | 世界 RWF 已關。台服 **六王起**報該王前 3 擊殺；尾王另報 TW 領先 best |
 | 新 best | 世界 RWF 已關（main 不輪詢）。`watcher.py` 仍留 Echo/Liquid/Method best 邏輯，未經明示不要重開 |
-| 擊殺 | 主來源 **WCL v2 progressRace**（同 `/zone/race/latest?region=4`）∪ RIO。公會用**名字**對上。v1 rankings 當 v2 失敗時後援 |
+| 擊殺 | **v1 rankings 每 30 秒**（擊殺要快）∪ **v2 progressRace 快取 ~8 分**（best %／pulls，同 race 頁）∪ RIO。公會用**名字**對上 |
 | Hidden | Liquid hidden 血量不報變化，擊殺仍報 |
 | 指紋 | 無時間戳。第一次 poll 只寫 state、不洗版 |
 | 目的地 | **只留** `/twnotifi on\|off` → `/data/tw-destinations.json`。`/rwfnotifi` 已從 bot 拿掉。空名單就不發 |

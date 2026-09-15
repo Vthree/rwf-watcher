@@ -1,6 +1,6 @@
 """
-TW sidecar: WCL v2 progressRace (same as /zone/race/latest?region=4),
-fallback v1 rankings + Raider.io. From 六王, top-3 kills; last-boss TW-lead best.
+TW sidecar: v1 rankings every poll for kills; v2 progressRace (cached) for
+best % / pulls — same board as /zone/race/latest?region=4. RIO union.
 World RWF (Echo / Liquid / Method) is not polled.
 
 Not part of grok-bot-core. No LLM. LINE is intentionally omitted.
@@ -32,7 +32,7 @@ logger = logging.getLogger("rwf")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-VERSION = "1.6.0"
+VERSION = "1.6.1"
 
 
 def _int_env(name: str, default: int) -> int:
@@ -109,7 +109,7 @@ def main() -> int:
                     except Exception:
                         logger.exception("wcl v2 progressRace failed")
                 wcl_snap = None
-                if race_snap is None and wcl is not None:
+                if wcl is not None:
                     try:
                         wcl_snap = wcl.fetch_tw_kills(bosses)
                     except Exception:

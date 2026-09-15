@@ -8,7 +8,7 @@ Sidecar for WoW notices. **World RWF (Echo / Liquid / Method) polling is off.** 
 
 ## Do
 
-- TW kills/best from WCL v2 `progressRace(serverRegion: TW)` (same as race page). Fallback v1 rankings + RIO. No HTML scrape. Never commit keys. Cache v2 ~8 min.
+- TW **kills** from WCL v1 rankings every poll (30s). TW **best %** from v2 progressRace (cached ~8 min, same as race page). Union RIO. No HTML. Never commit keys.
 - Kill = rankings `encountersDefeated` ∪ live raid-progress `isDefeated`.
 - New best posted only for last boss **Ula'tek**, world lead among Echo/Liquid/Method. Phase order from API `phase`: P1=1, P2=2, **I1=2.5**, P3=3, P4=4. Display uses `phase_label` (`I1` not `P2.5`). Later phase notifies even if `bestPercent` lags; same-phase remaining is gated by `bestPercent`.
 - Posted kills: **Ula'tek only**. Earlier bosses are still tracked in state, never sent. After 8/8, still read ulatek `pullCount` for the kill line.
