@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.0 — 2026-09-15
+
+- TW primary source: WCL GraphQL `progressRace(serverRegion: TW)` — same board as https://tw.warcraftlogs.com/zone/race/latest?region=4 (kills, bestPercentForDisplay, pulls). Cached ~8 min to stay under v2 points.
+- Env `WCL_CLIENT_ID` + `WCL_CLIENT_SECRET` (never commit). v1 rankings remain fallback.
+
 ## 1.5.0 — 2026-09-15
 
 - TW kills: Warcraft Logs v1 encounter rankings (TW Mythic) **union** Raider.io. Fixes misses when nobody is running the RIO client (e.g. JO JO 六王). Match guilds by name+realm so RIO ids do not re-fire 台服首殺.

@@ -121,6 +121,13 @@ def guild_key(name: str | TwGuildSnap, realm: str | None = None) -> str:
     return f"{(name or '').strip().lower()}|{(realm or '').strip().lower()}"
 
 
+def guild_match_key(g: TwGuildSnap | str) -> str:
+    """Race JSON has no realm; match TW guilds by name."""
+    if isinstance(g, TwGuildSnap):
+        return (g.name or "").strip().lower()
+    return (g or "").strip().lower()
+
+
 def _earliest_first(a: dict[str, str], b: dict[str, str]) -> dict[str, str]:
     out = dict(a)
     for k, v in b.items():
@@ -165,7 +172,9 @@ def merge_tw_snapshots(
         if src is None:
             continue
         for g in src.guilds.values():
-            k = guild_key(g)
+            k = guild_match_key(g)
+            if not k:
+                continue
             old = by_key.get(k)
             by_key[k] = merge_guild(old, g) if old else g
     guilds: dict[int, TwGuildSnap] = {}
@@ -333,10 +342,10 @@ def diff_tw(
     for boss in bosses:
         if boss.index < TW_TOP_FROM_INDEX:
             continue
-        prev_keys = {guild_key(g) for g in prev.guilds.values() if _has_kill(g, boss.slug)}
+        prev_keys = {guild_match_key(g) for g in prev.guilds.values() if _has_kill(g, boss.slug)}
         ordered = _killers_ordered(curr, boss.slug)
         for place, g in enumerate(ordered, start=1):
-            if guild_key(g) in prev_keys:
+            if guild_match_key(g) in prev_keys:
                 continue
             if place > TW_TOP_SLOTS:
                 continue
@@ -368,9 +377,9 @@ def coalesce_tw(prev: TwSnapshot | None, curr: TwSnapshot) -> TwSnapshot:
         return TwSnapshot(region_max=tw_region_max(curr), guilds=dict(curr.guilds))
     merged = merge_tw_snapshots(prev, curr)
     guilds: dict[int, TwGuildSnap] = {}
-    prev_by = {guild_key(g): g for g in prev.guilds.values()}
+    prev_by = {guild_match_key(g): g for g in prev.guilds.values()}
     for gid, new in merged.guilds.items():
-        old = prev_by.get(guild_key(new))
+        old = prev_by.get(guild_match_key(new))
         best = coalesce_best(old.best if old else None, new.best)
         guilds[gid] = TwGuildSnap(
             id=new.id,

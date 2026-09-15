@@ -1,6 +1,6 @@
 """
-TW sidecar: poll WCL (kills) + Raider.io (best / pulls). From 六王, notify
-top-3 kills (台服首殺 only for place 1). Last-boss also notifies TW-lead best %.
+TW sidecar: WCL v2 progressRace (same as /zone/race/latest?region=4),
+fallback v1 rankings + Raider.io. From 六王, top-3 kills; last-boss TW-lead best.
 World RWF (Echo / Liquid / Method) is not polled.
 
 Not part of grok-bot-core. No LLM. LINE is intentionally omitted.
@@ -22,7 +22,7 @@ from rio import RioClient, RioError
 from state import load_tw
 from state import save_tw
 from tw import coalesce_tw, diff_tw, merge_tw_snapshots, tw_region_max
-from wcl import WclClient
+from wcl import WclClient, WclV2Client
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -32,7 +32,7 @@ logger = logging.getLogger("rwf")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 
 
 def _int_env(name: str, default: int) -> int:
@@ -48,6 +48,8 @@ def _int_env(name: str, default: int) -> int:
 def main() -> int:
     rio_key = env_secret("RIO_ACCESS_KEY", "RAIDERIO_ACCESS_KEY", "RIO_API_KEY")
     wcl_key = env_secret("WCL_API_KEY", "WARCRAFTLOGS_API_KEY")
+    wcl_id = env_secret("WCL_CLIENT_ID")
+    wcl_sec = env_secret("WCL_CLIENT_SECRET")
     tg_token = env_secret("TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN")
     dc_token = env_secret("DISCORD_BOT_TOKEN", "DISCORD_TOKEN")
     dry_run = env_secret("RWF_DRY_RUN").lower() in {"1", "true", "yes", "on"}
@@ -57,17 +59,20 @@ def main() -> int:
     if not rio_key:
         logger.error("RIO_ACCESS_KEY missing")
         return 1
+    if not wcl_id or not wcl_sec:
+        logger.warning("WCL_CLIENT_ID/SECRET missing; progressRace off")
     if not wcl_key:
-        logger.warning("WCL_API_KEY missing; TW kills fall back to Raider.io only")
+        logger.warning("WCL_API_KEY missing; v1 rankings fallback off")
 
     start_control_server()
     tw_dests = load_dests(feed="tw")
     logger.info(
-        "rwf-watcher %s raid=%s poll=%ss dry_run=%s world_rwf=off wcl=%s tw_tg=%s tw_dc=%s",
+        "rwf-watcher %s raid=%s poll=%ss dry_run=%s world_rwf=off wcl_v2=%s wcl_v1=%s tw_tg=%s tw_dc=%s",
         VERSION,
         RAID_SLUG,
         interval,
         dry_run,
+        bool(wcl_id and wcl_sec),
         bool(wcl_key),
         tw_dests.get("telegram") or [],
         tw_dests.get("discord") or [],
@@ -75,6 +80,7 @@ def main() -> int:
 
     client = RioClient(rio_key)
     wcl = WclClient(wcl_key) if wcl_key else None
+    wcl2 = WclV2Client(wcl_id, wcl_sec, race_ttl=_int_env("WCL_RACE_TTL_SECONDS", 480)) if (wcl_id and wcl_sec) else None
     try:
         try:
             bosses = client.static_bosses()
@@ -96,15 +102,21 @@ def main() -> int:
                     rio_snap = client.fetch_tw_snapshot(bosses)
                 except Exception:
                     logger.exception("rio tw snapshot failed")
+                race_snap = None
+                if wcl2 is not None:
+                    try:
+                        race_snap = wcl2.fetch_tw_race(bosses)
+                    except Exception:
+                        logger.exception("wcl v2 progressRace failed")
                 wcl_snap = None
-                if wcl is not None:
+                if race_snap is None and wcl is not None:
                     try:
                         wcl_snap = wcl.fetch_tw_kills(bosses)
                     except Exception:
-                        logger.exception("wcl tw kills failed")
-                if rio_snap is None and wcl_snap is None:
+                        logger.exception("wcl v1 rankings failed")
+                if rio_snap is None and wcl_snap is None and race_snap is None:
                     raise RuntimeError("no TW snapshot from RIO or WCL")
-                tw_curr = merge_tw_snapshots(rio_snap, wcl_snap)
+                tw_curr = merge_tw_snapshots(merge_tw_snapshots(rio_snap, wcl_snap), race_snap)
                 tw_tick = diff_tw(tw_prev, tw_curr, bosses)
                 tw_msg = tw_tick.message()
                 if tw_tick.silent or not tw_msg:
@@ -135,6 +147,8 @@ def main() -> int:
         client.close()
         if wcl is not None:
             wcl.close()
+        if wcl2 is not None:
+            wcl2.close()
 
 
 if __name__ == "__main__":

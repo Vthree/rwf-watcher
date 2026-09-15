@@ -16,7 +16,7 @@ Grok bot 路由規則仍以各 host 的 [AGENTS.md](https://github.com/Vthree/te
 
 ## Current snapshot（2026-09-15）
 
-**Version: v1.5.0.** GitHub: [Vthree/rwf-watcher](https://github.com/Vthree/rwf-watcher)
+**Version: v1.6.0.** GitHub: [Vthree/rwf-watcher](https://github.com/Vthree/rwf-watcher)
 
 | 項目 | 現況 — 未經明示不要改 |
 |------|----------------------|
@@ -26,7 +26,7 @@ Grok bot 路由規則仍以各 host 的 [AGENTS.md](https://github.com/Vthree/te
 | 輪詢 | `RWF_POLL_SECONDS=30`（程式下限也是 30） |
 | 只發尾王 | 世界 RWF 已關。台服 **六王起**報該王前 3 擊殺；尾王另報 TW 領先 best |
 | 新 best | 世界 RWF 已關（main 不輪詢）。`watcher.py` 仍留 Echo/Liquid/Method best 邏輯，未經明示不要重開 |
-| 擊殺 | **WCL** TW Mythic encounter rankings ∪ Raider.io。公會用名字+伺服器對上（不要用 RIO id 重播台服首殺） |
+| 擊殺 | 主來源 **WCL v2 progressRace**（同 `/zone/race/latest?region=4`）∪ RIO。公會用**名字**對上。v1 rankings 當 v2 失敗時後援 |
 | Hidden | Liquid hidden 血量不報變化，擊殺仍報 |
 | 指紋 | 無時間戳。第一次 poll 只寫 state、不洗版 |
 | 目的地 | **只留** `/twnotifi on\|off` → `/data/tw-destinations.json`。`/rwfnotifi` 已從 bot 拿掉。空名單就不發 |
@@ -36,7 +36,7 @@ Grok bot 路由規則仍以各 host 的 [AGENTS.md](https://github.com/Vthree/te
 | 台服 best | 僅尾王、僅 TW 領先：`!best` + `台服 {guild} 《烈毒之淵》Mythic` + 剩餘%。Hidden／落後不報 |
 | 安靜 | 不要把 `[SILENT]` 發到群裡 |
 | 世界首殺 | 僅尾王，且先前 state 還沒見過 world ulatek |
-| 金鑰 | `RIO_ACCESS_KEY`、`WCL_API_KEY` 只在 Railway env，**禁止 commit** |
+| 金鑰 | `RIO_ACCESS_KEY`、`WCL_API_KEY`、`WCL_CLIENT_ID`、`WCL_CLIENT_SECRET` 只在 Railway env，**禁止 commit** |
 
 ---
 
@@ -65,7 +65,7 @@ Grok bot 路由規則仍以各 host 的 [AGENTS.md](https://github.com/Vthree/te
 
 Watcher volume：`/data`（`rwf-state.json` 指紋、`rwf-destinations.json` 訂閱、`tw-state.json`、`tw-destinations.json`）。
 
-Watcher 必要 env：`RIO_ACCESS_KEY`、`WCL_API_KEY`、`TELEGRAM_BOT_TOKEN`、`DISCORD_BOT_TOKEN`、`RWF_CONTROL_TOKEN`、`PORT=8080`、`RWF_POLL_SECONDS=30`。
+Watcher 必要 env：`RIO_ACCESS_KEY`、`WCL_CLIENT_ID`、`WCL_CLIENT_SECRET`、`WCL_API_KEY`、`TELEGRAM_BOT_TOKEN`、`DISCORD_BOT_TOKEN`、`RWF_CONTROL_TOKEN`、`PORT=8080`、`RWF_POLL_SECONDS=30`。
 
 Grok bots 必要 env：`RWF_WATCHER_URL=http://rwf-watcher.railway.internal:8080`、同一個 `RWF_CONTROL_TOKEN`。
 
@@ -93,10 +93,11 @@ API（只要官方 JSON，禁止刮 WCL／PullCount HTML）：
 - `GET /api/v1/live-tracking/guild/boss-progress?guild_id=&boss=<slug>`  
   參數是 **`guild_id`**，不是 `guildId`。
 
-WCL（TW 擊殺，v1 JSON，禁止刮 HTML）：
+WCL（禁止刮 `/zone/race/content` HTML）：
 
-- `GET https://www.warcraftlogs.com/v1/rankings/encounter/{id}?metric=speed&difficulty=5&region=TW&api_key=`
-- Zone 53 Twin Fangs encounter **3421**。金鑰 `WCL_API_KEY`。
+- v2 GraphQL `progressRaceData.progressRace(serverRegion: "TW", zoneID: 53, difficulty: 5, size: 20)` — 與 race 頁同一份。OAuth client credentials。快取約 8 分鐘（點數貴）。
+- v1 後援：`GET /v1/rankings/encounter/{id}?metric=speed&difficulty=5&region=TW`
+- Zone 53 Twin Fangs **3421**。
 
 ---
 
@@ -158,7 +159,7 @@ Ula'tek 剩餘 70%
 | `watcher.py` | 指紋、diff、只發 ulatek、組字 |
 | `tw.py` | 台服六王起前 3 擊殺、尾王領先 best、組字 |
 | `rio.py` | Raider.io client（best / pulls） |
-| `wcl.py` | Warcraft Logs v1 TW 擊殺 |
+| `wcl.py` | WCL v2 progressRace + v1 rankings |
 | `destinations.py` | 訂閱名單 |
 | `control.py` | `GET/POST /tw/destinations`、`GET /health` |
 | `notify.py` | TG sendMessage + Discord REST |

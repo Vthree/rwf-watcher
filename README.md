@@ -34,7 +34,9 @@ Quiet otherwise. `[SILENT]` is never posted to chat.
 | Variable | Required | Notes |
 |----------|----------|--------|
 | `RIO_ACCESS_KEY` | yes | Also accepts `RAIDERIO_ACCESS_KEY` / `RIO_API_KEY` |
-| `WCL_API_KEY` | yes (TW kills) | Warcraft Logs v1 public key. Never commit. |
+| `WCL_CLIENT_ID` | yes (TW race) | WCL v2 OAuth client id. Never commit. |
+| `WCL_CLIENT_SECRET` | yes (TW race) | WCL v2 OAuth secret. Never commit. |
+| `WCL_API_KEY` | fallback | v1 public key if v2 is down. Never commit. |
 | `TELEGRAM_BOT_TOKEN` | for TG send | Same token as telegram-grok-bot |
 | `DISCORD_BOT_TOKEN` | for DC send | Same token as discord-grok-bot |
 | `RWF_CONTROL_TOKEN` | yes | Shared with grok bots so `/twnotifi` can toggle dests |

@@ -32,7 +32,7 @@ from tw import (
     snapshot_from_rankings,
     tw_region_max,
 )
-from wcl import snapshot_from_wcl_rankings
+from wcl import snapshot_from_progress_race, snapshot_from_wcl_rankings
 from watcher import (
     coalesce_best,
     coalesce_snapshot,
@@ -722,6 +722,33 @@ def main() -> None:
     jojo_kill = next(k for k in tick.kills if k.guild_name.startswith("For the Glory"))
     assert jojo_kill.tw_first is False
     assert not any(k.guild_name == "Fortune" for k in tick.kills)
+
+    race = snapshot_from_progress_race(
+        [
+            {
+                "id": 1,
+                "name": "Fortune",
+                "killedCount": 7,
+                "encounters": [
+                    {"id": 3421, "isKilled": True, "killedAtTimestamp": 1789309100554, "pullCount": 193},
+                    {
+                        "id": 3492,
+                        "isKilled": False,
+                        "bestPercent": 12.5,
+                        "bestPercentForDisplay": "4.4% P3",
+                        "bestPhaseIndex": 2,
+                        "pullCount": 40,
+                    },
+                ],
+            }
+        ],
+        BOSSES,
+    )
+    fg = next(iter(race.guilds.values()))
+    assert "the-twin-fangs" in fg.killed
+    assert fg.best is not None and fg.best.remaining == 4.4
+    assert fg.best.phase_label == "P3"
+    assert fg.pulls.get("ulatek") == 40
 
     print("ALL_UNIT_TESTS_PASSED")
 
