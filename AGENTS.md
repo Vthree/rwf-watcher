@@ -8,7 +8,7 @@ Sidecar for WoW notices. **World RWF (Echo / Liquid / Method) polling is off.** 
 
 ## Do
 
-- Raider.io **API only** (`access_key` from env). No WCL / PullCount HTML.
+- TW **kills** from Warcraft Logs v1 JSON (`WCL_API_KEY`) union Raider.io. No WCL/PullCount **HTML**. Never commit keys.
 - Kill = rankings `encountersDefeated` ∪ live raid-progress `isDefeated`.
 - New best posted only for last boss **Ula'tek**, world lead among Echo/Liquid/Method. Phase order from API `phase`: P1=1, P2=2, **I1=2.5**, P3=3, P4=4. Display uses `phase_label` (`I1` not `P2.5`). Later phase notifies even if `bestPercent` lags; same-phase remaining is gated by `bestPercent`.
 - Posted kills: **Ula'tek only**. Earlier bosses are still tracked in state, never sent. After 8/8, still read ulatek `pullCount` for the kill line.
@@ -20,11 +20,11 @@ Sidecar for WoW notices. **World RWF (Echo / Liquid / Method) polling is off.** 
 - `pulls` → 嘗試次數. Do not send `[SILENT]` to chats.
 - Ula'tek `世界首殺` only if previous state had no world ulatek.
 - Kill line: `{guild} 擊殺 尾王 {name}（8/8）` then optional ` 世界首殺`, then `嘗試次數 N` when pullCount is known. Guild name before 擊殺.
-- TW feed: no guild allowlist. Rankings `region=tw` only. From **六王**, notify the first 3 kills of that boss. **Only place 1** gets `台服首殺`. Last boss also posts TW-lead Ula'tek best `%` (`!best`, 台服 prefix). Bosses 1–5: no kill notices. First poll silent. Live ulatek progress for 7/8 guilds.
+- TW feed: no guild allowlist. Kills = WCL TW Mythic encounter rankings ∪ RIO. Match guilds by **name+realm**. From **六王**, notify the first 3 kills of that boss. **Only place 1** gets `台服首殺`. Last boss also posts TW-lead Ula'tek best `%` from RIO live. Bosses 1–5: no kill notices. First poll silent.
 - Do **not** resume Echo/Liquid/Method polling unless the owner asks. `/rwfnotifi` is removed from the grok bots.
 
 ## Don't
 
-- Commit `RIO_ACCESS_KEY`.
+- Commit `RIO_ACCESS_KEY` or `WCL_API_KEY`.
 - Edit grok-bot-core or LINE for this feature.
 - Notify LINE (Push quota).

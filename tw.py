@@ -115,6 +115,80 @@ def tw_region_max(snapshot: TwSnapshot) -> int:
     return max(len(g.killed) for g in snapshot.guilds.values())
 
 
+def guild_key(name: str | TwGuildSnap, realm: str | None = None) -> str:
+    if isinstance(name, TwGuildSnap):
+        return guild_key(name.name, name.realm)
+    return f"{(name or '').strip().lower()}|{(realm or '').strip().lower()}"
+
+
+def _earliest_first(a: dict[str, str], b: dict[str, str]) -> dict[str, str]:
+    out = dict(a)
+    for k, v in b.items():
+        old = out.get(k)
+        if old is None or v < old:
+            out[k] = v
+    return out
+
+
+def _union_killed(a: tuple[str, ...], b: tuple[str, ...]) -> tuple[str, ...]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for s in list(a) + list(b):
+        k = s.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(s)
+    return tuple(out)
+
+
+def merge_guild(old: TwGuildSnap, new: TwGuildSnap) -> TwGuildSnap:
+    """Prefer new id/name; union kills; earliest firstDefeated; keep pulls/best."""
+    return TwGuildSnap(
+        id=new.id or old.id,
+        name=new.name or old.name,
+        realm=new.realm or old.realm,
+        killed=_union_killed(old.killed, new.killed),
+        pulls={**old.pulls, **new.pulls},
+        first_defeated=_earliest_first(old.first_defeated, new.first_defeated),
+        best=new.best or old.best,
+    )
+
+
+def merge_tw_snapshots(
+    rio: TwSnapshot | None,
+    wcl: TwSnapshot | None,
+) -> TwSnapshot:
+    """Union RIO + WCL by guild name+realm. Kills from either source count."""
+    by_key: dict[str, TwGuildSnap] = {}
+    for src in (rio, wcl):
+        if src is None:
+            continue
+        for g in src.guilds.values():
+            k = guild_key(g)
+            old = by_key.get(k)
+            by_key[k] = merge_guild(old, g) if old else g
+    guilds: dict[int, TwGuildSnap] = {}
+    for g in by_key.values():
+        gid = int(g.id)
+        while gid in guilds:
+            gid += 1
+        if gid != g.id:
+            g = TwGuildSnap(
+                id=gid,
+                name=g.name,
+                realm=g.realm,
+                killed=g.killed,
+                pulls=g.pulls,
+                first_defeated=g.first_defeated,
+                best=g.best,
+            )
+        guilds[g.id] = g
+    out = TwSnapshot(guilds=guilds)
+    out.region_max = tw_region_max(out)
+    return out
+
+
 def _has_kill(g: TwGuildSnap, slug: str) -> bool:
     return slug.lower() in {s.lower() for s in g.killed}
 
@@ -259,10 +333,10 @@ def diff_tw(
     for boss in bosses:
         if boss.index < TW_TOP_FROM_INDEX:
             continue
-        prev_ids = {g.id for g in prev.guilds.values() if _has_kill(g, boss.slug)}
+        prev_keys = {guild_key(g) for g in prev.guilds.values() if _has_kill(g, boss.slug)}
         ordered = _killers_ordered(curr, boss.slug)
         for place, g in enumerate(ordered, start=1):
-            if g.id in prev_ids:
+            if guild_key(g) in prev_keys:
                 continue
             if place > TW_TOP_SLOTS:
                 continue
@@ -292,20 +366,22 @@ def diff_tw(
 def coalesce_tw(prev: TwSnapshot | None, curr: TwSnapshot) -> TwSnapshot:
     if prev is None:
         return TwSnapshot(region_max=tw_region_max(curr), guilds=dict(curr.guilds))
+    merged = merge_tw_snapshots(prev, curr)
     guilds: dict[int, TwGuildSnap] = {}
-    for gid, new in curr.guilds.items():
-        old = prev.guilds.get(gid)
+    prev_by = {guild_key(g): g for g in prev.guilds.values()}
+    for gid, new in merged.guilds.items():
+        old = prev_by.get(guild_key(new))
         best = coalesce_best(old.best if old else None, new.best)
         guilds[gid] = TwGuildSnap(
             id=new.id,
             name=new.name,
             realm=new.realm,
             killed=new.killed,
-            pulls=new.pulls or (old.pulls if old else {}),
-            first_defeated=new.first_defeated or (old.first_defeated if old else {}),
+            pulls=new.pulls,
+            first_defeated=new.first_defeated,
             best=best,
         )
-    region_max = max(prev.region_max, tw_region_max(curr))
+    region_max = max(prev.region_max, tw_region_max(merged))
     return TwSnapshot(region_max=region_max, guilds=guilds)
 
 

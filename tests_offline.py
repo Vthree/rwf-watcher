@@ -26,10 +26,13 @@ from tw import (
     diff_tw,
     format_tw_best,
     format_tw_kill,
+    guild_key,
     guild_snap_from_ranking,
+    merge_tw_snapshots,
     snapshot_from_rankings,
     tw_region_max,
 )
+from wcl import snapshot_from_wcl_rankings
 from watcher import (
     coalesce_best,
     coalesce_snapshot,
@@ -505,11 +508,11 @@ def main() -> None:
     assert second == "台服 月刃 擊殺 六王 The Twin Fangs（6/8）\n嘗試次數 12"
     assert "台服首殺" not in second
 
-    def _tw_g(gid, name, killed, pulls=None, first=None, best=None):
+    def _tw_g(gid, name, killed, pulls=None, first=None, best=None, realm="暗影之月"):
         return TwGuildSnap(
             id=gid,
             name=name,
-            realm="暗影之月",
+            realm=realm,
             killed=tuple(killed),
             pulls=pulls or {},
             first_defeated=first or {},
@@ -681,6 +684,44 @@ def main() -> None:
     best_txt = format_tw_best(TwBestEvent("Fortune", ulatek_best))
     assert best_txt.startswith("!best\n台服 Fortune")
     assert "Ula'tek" in best_txt
+
+    assert guild_key("Fortune", "暗影之月") == guild_key(" fortune ", "暗影之月")
+    rio_only = TwSnapshot(
+        region_max=5,
+        guilds={
+            1292704: _tw_g(1292704, "For the Glory of JO JO", five, realm="世界之樹"),
+            35688: _tw_g(35688, "Fortune", six, first={twin_slug: "2026-09-13T14:18:20.000Z"}, realm="暗影之月"),
+        },
+    )
+    wcl_only = snapshot_from_wcl_rankings(
+        {
+            twin_slug: [
+                {
+                    "guildName": "Fortune",
+                    "serverName": "暗影之月",
+                    "guildID": 73857,
+                    "startTime": 1789309100554,
+                },
+                {
+                    "guildName": "For the Glory of JO JO",
+                    "serverName": "世界之樹",
+                    "guildID": 111,
+                    "startTime": 1789477817566,
+                },
+            ]
+        },
+        BOSSES,
+    )
+    assert any("the-twin-fangs" in g.killed for g in wcl_only.guilds.values() if g.name.startswith("For the Glory"))
+    merged = merge_tw_snapshots(rio_only, wcl_only)
+    jojo = next(g for g in merged.guilds.values() if "JO JO" in g.name)
+    assert twin_slug in jojo.killed
+    assert len(jojo.killed) >= 6
+    tick = diff_tw(rio_only, merged, BOSSES)
+    assert any(k.guild_name.startswith("For the Glory") and k.boss.slug == twin_slug for k in tick.kills)
+    jojo_kill = next(k for k in tick.kills if k.guild_name.startswith("For the Glory"))
+    assert jojo_kill.tw_first is False
+    assert not any(k.guild_name == "Fortune" for k in tick.kills)
 
     print("ALL_UNIT_TESTS_PASSED")
 

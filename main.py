@@ -1,6 +1,6 @@
 """
-TW sidecar: poll Raider.io Taiwan rankings. From 六王, notify top-3 kills
-(台服首殺 only for place 1). Last-boss also notifies TW-lead best %.
+TW sidecar: poll WCL (kills) + Raider.io (best / pulls). From 六王, notify
+top-3 kills (台服首殺 only for place 1). Last-boss also notifies TW-lead best %.
 World RWF (Echo / Liquid / Method) is not polled.
 
 Not part of grok-bot-core. No LLM. LINE is intentionally omitted.
@@ -21,7 +21,8 @@ from notify import fanout
 from rio import RioClient, RioError
 from state import load_tw
 from state import save_tw
-from tw import coalesce_tw, diff_tw, tw_region_max
+from tw import coalesce_tw, diff_tw, merge_tw_snapshots, tw_region_max
+from wcl import WclClient
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -31,7 +32,7 @@ logger = logging.getLogger("rwf")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 
 
 def _int_env(name: str, default: int) -> int:
@@ -46,6 +47,7 @@ def _int_env(name: str, default: int) -> int:
 
 def main() -> int:
     rio_key = env_secret("RIO_ACCESS_KEY", "RAIDERIO_ACCESS_KEY", "RIO_API_KEY")
+    wcl_key = env_secret("WCL_API_KEY", "WARCRAFTLOGS_API_KEY")
     tg_token = env_secret("TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN")
     dc_token = env_secret("DISCORD_BOT_TOKEN", "DISCORD_TOKEN")
     dry_run = env_secret("RWF_DRY_RUN").lower() in {"1", "true", "yes", "on"}
@@ -55,20 +57,24 @@ def main() -> int:
     if not rio_key:
         logger.error("RIO_ACCESS_KEY missing")
         return 1
+    if not wcl_key:
+        logger.warning("WCL_API_KEY missing; TW kills fall back to Raider.io only")
 
     start_control_server()
     tw_dests = load_dests(feed="tw")
     logger.info(
-        "rwf-watcher %s raid=%s poll=%ss dry_run=%s world_rwf=off tw_tg=%s tw_dc=%s",
+        "rwf-watcher %s raid=%s poll=%ss dry_run=%s world_rwf=off wcl=%s tw_tg=%s tw_dc=%s",
         VERSION,
         RAID_SLUG,
         interval,
         dry_run,
+        bool(wcl_key),
         tw_dests.get("telegram") or [],
         tw_dests.get("discord") or [],
     )
 
     client = RioClient(rio_key)
+    wcl = WclClient(wcl_key) if wcl_key else None
     try:
         try:
             bosses = client.static_bosses()
@@ -85,7 +91,20 @@ def main() -> int:
 
         while True:
             try:
-                tw_curr = client.fetch_tw_snapshot(bosses)
+                rio_snap = None
+                try:
+                    rio_snap = client.fetch_tw_snapshot(bosses)
+                except Exception:
+                    logger.exception("rio tw snapshot failed")
+                wcl_snap = None
+                if wcl is not None:
+                    try:
+                        wcl_snap = wcl.fetch_tw_kills(bosses)
+                    except Exception:
+                        logger.exception("wcl tw kills failed")
+                if rio_snap is None and wcl_snap is None:
+                    raise RuntimeError("no TW snapshot from RIO or WCL")
+                tw_curr = merge_tw_snapshots(rio_snap, wcl_snap)
                 tw_tick = diff_tw(tw_prev, tw_curr, bosses)
                 tw_msg = tw_tick.message()
                 if tw_tick.silent or not tw_msg:
@@ -114,6 +133,8 @@ def main() -> int:
             time.sleep(interval)
     finally:
         client.close()
+        if wcl is not None:
+            wcl.close()
 
 
 if __name__ == "__main__":

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.0 — 2026-09-15
+
+- TW kills: Warcraft Logs v1 encounter rankings (TW Mythic) **union** Raider.io. Fixes misses when nobody is running the RIO client (e.g. JO JO 六王). Match guilds by name+realm so RIO ids do not re-fire 台服首殺.
+- Env `WCL_API_KEY` (never commit). Last-boss best `%` still from Raider.io live.
+
 ## 1.4.0 — 2026-09-01
 
 - TW from **六王**: notify the first 3 kills of that boss. Only place 1 gets `台服首殺`.

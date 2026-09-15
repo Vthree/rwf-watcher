@@ -1,6 +1,6 @@
 # rwf-watcher
 
-Taiwan Mythic progress notifier for *The Venomous Abyss*（《烈毒之淵》）. World RWF (Echo / Liquid / Method) polling is **off**.
+Taiwan Mythic progress notifier for *The Venomous Abyss*（《烈毒之淵》）. Kills from **Warcraft Logs** (union Raider.io). World RWF polling is **off**.
 
 Independent sidecar. **Not** part of `grok-bot-core`. No LLM. LINE is omitted (Push quota).
 
@@ -27,13 +27,14 @@ Quiet otherwise. `[SILENT]` is never posted to chat.
 | World first | Last boss Ula'tek may say `世界首殺` only if previous state had no world ulatek kill. |
 | Fingerprint | Kills + best display. **No timestamps.** |
 | Copy | Best starts with `!best`. Kill is `{guild} 擊殺 尾王 …（8/8）` then `嘗試次數 N`. `pulls` → **嘗試次數** (never 「拉」). No URL. |
-| Taiwan | Rankings `region=tw`. From 六王: first 3 kills (`台服首殺` on place 1 only). 尾王: + TW-lead `!best`. |
+| Taiwan | Kills: WCL TW Mythic ∪ RIO. From 六王: first 3 kills (`台服首殺` on place 1 only). 尾王: + TW-lead `!best`. |
 
 ## Env
 
 | Variable | Required | Notes |
 |----------|----------|--------|
 | `RIO_ACCESS_KEY` | yes | Also accepts `RAIDERIO_ACCESS_KEY` / `RIO_API_KEY` |
+| `WCL_API_KEY` | yes (TW kills) | Warcraft Logs v1 public key. Never commit. |
 | `TELEGRAM_BOT_TOKEN` | for TG send | Same token as telegram-grok-bot |
 | `DISCORD_BOT_TOKEN` | for DC send | Same token as discord-grok-bot |
 | `RWF_CONTROL_TOKEN` | yes | Shared with grok bots so `/twnotifi` can toggle dests |
