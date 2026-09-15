@@ -20,7 +20,7 @@ Sidecar for WoW notices. **World RWF (Echo / Liquid / Method) polling is off.** 
 - `pulls` → 嘗試次數. Do not send `[SILENT]` to chats.
 - Ula'tek `世界首殺` only if previous state had no world ulatek.
 - Kill line: `{guild} 擊殺 尾王 {name}（8/8）` then optional ` 世界首殺`, then `嘗試次數 N` when pullCount is known. Guild name before 擊殺.
-- TW feed: no guild allowlist. Primary = WCL v2 progressRace TW. Match guilds by **name**. From **六王**, notify the first 3 kills of that boss. **Only place 1** gets `台服首殺`. Last boss TW-lead best `%` from race `bestPercentForDisplay`. Bosses 1–5: no kill notices. First poll silent.
+- TW feed: no guild allowlist. Match guilds by **name**. Kills: v1 every 30s. Best %: v2 progressRace cache ~8 min. From **六王**, first 3 kills (`台服首殺` only place 1). Last boss TW-lead best. Bosses 1–5: no kill notices. First poll silent.
 - Do **not** resume Echo/Liquid/Method polling unless the owner asks. `/rwfnotifi` is removed from the grok bots.
 
 ## Don't
