@@ -24,7 +24,7 @@ Grok bot 路由規則仍以各 host 的 [AGENTS.md](https://github.com/Vthree/te
 | 台服 | **獨立** feed：不指定公會。**六王起**報該王前 3 個擊殺；只有該王**第一個**公會寫 `台服首殺`，第 2、3 名只寫擊殺。**尾王**另報 TW 領先 best `%`。1–5 王不刷擊殺。第一次 poll 種子不洗版 |
 | 平台 | Telegram + Discord。**LINE 不做**（Push 配額） |
 | 輪詢 | `RWF_POLL_SECONDS=30`（程式下限也是 30） |
-| 只發尾王 | 世界 RWF 已關。台服 feed 報該次里程碑那隻王（一王…七王／尾王） |
+| 只發尾王 | 世界 RWF 已關。台服 **六王起**報該王前 3 擊殺；尾王另報 TW 領先 best |
 | 新 best | 世界 RWF 已關（main 不輪詢）。`watcher.py` 仍留 Echo/Liquid/Method best 邏輯，未經明示不要重開 |
 | 擊殺 | rankings `encountersDefeated` ∪ live `isDefeated` |
 | Hidden | Liquid hidden 血量不報變化，擊殺仍報 |
@@ -151,7 +151,7 @@ Ula'tek 剩餘 70%
 |----|--------|
 | `main.py` | poll loop + 啟動 control HTTP |
 | `watcher.py` | 指紋、diff、只發 ulatek、組字 |
-| `tw.py` | 台服區域 N/8 里程碑、組字 |
+| `tw.py` | 台服六王起前 3 擊殺、尾王領先 best、組字 |
 | `rio.py` | Raider.io client |
 | `destinations.py` | 訂閱名單 |
 | `control.py` | `GET/POST /tw/destinations`、`GET /health` |
