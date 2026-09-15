@@ -14,14 +14,14 @@ Grok bot 路由規則仍以各 host 的 [AGENTS.md](https://github.com/Vthree/te
 
 ---
 
-## Current snapshot（2026-08-31）
+## Current snapshot（2026-09-01）
 
-**Version: v1.3.0.** GitHub: [Vthree/rwf-watcher](https://github.com/Vthree/rwf-watcher)
+**Version: v1.4.0.** GitHub: [Vthree/rwf-watcher](https://github.com/Vthree/rwf-watcher)
 
 | 項目 | 現況 — 未經明示不要改 |
 |------|----------------------|
 | 用途 | **只跑台服**《烈毒之淵》Mythic。世界 RWF（Echo / Liquid / Method）**已停輪詢**（前三已出爐） |
-| 台服 | **獨立** feed：不指定公會。只在台服 Mythic **整體最高 N/8 往上**才發擊殺（台服首殺）。**不發 best**。第一次 poll 種子不洗版 |
+| 台服 | **獨立** feed：不指定公會。**六王起**報該王前 3 個擊殺；只有該王**第一個**公會寫 `台服首殺`，第 2、3 名只寫擊殺。**尾王**另報 TW 領先 best `%`。1–5 王不刷擊殺。第一次 poll 種子不洗版 |
 | 平台 | Telegram + Discord。**LINE 不做**（Push 配額） |
 | 輪詢 | `RWF_POLL_SECONDS=30`（程式下限也是 30） |
 | 只發尾王 | 世界 RWF 已關。台服 feed 報該次里程碑那隻王（一王…七王／尾王） |
@@ -32,7 +32,8 @@ Grok bot 路由規則仍以各 host 的 [AGENTS.md](https://github.com/Vthree/te
 | 目的地 | **只留** `/twnotifi on\|off` → `/data/tw-destinations.json`。`/rwfnotifi` 已從 bot 拿掉。空名單就不發 |
 | Best 格式 | 第一行 `!best`，無網址。`pulls` → **嘗試次數**（不要寫「拉」） |
 | 擊殺格式 | 公會名在前：`Echo 擊殺 尾王 Ula'tek（8/8）`。世界首殺再加 ` 世界首殺`。下一行 `嘗試次數 N`（有 pullCount 才寫） |
-| 台服擊殺格式 | `台服 Fortune 擊殺 四王 Vashnik the Malignant（4/8） 台服首殺`（一王…七王，尾王仍寫尾王）。+ 嘗試次數。無 best |
+| 台服擊殺格式 | 首殺：`台服 Fortune 擊殺 六王 The Twin Fangs（6/8） 台服首殺`。第 2／3 名同一行但不寫台服首殺。尾王寫尾王。+ 嘗試次數 |
+| 台服 best | 僅尾王、僅 TW 領先：`!best` + `台服 {guild} 《烈毒之淵》Mythic` + 剩餘%。Hidden／落後不報 |
 | 安靜 | 不要把 `[SILENT]` 發到群裡 |
 | 世界首殺 | 僅尾王，且先前 state 還沒見過 world ulatek |
 | 金鑰 | `RIO_ACCESS_KEY` 只在 Railway env，**禁止 commit** |
@@ -121,11 +122,25 @@ Echo 擊殺 尾王 Ula'tek（8/8）
 
 （沒有世界首殺就不要寫那四個字。沒有 pullCount 就不要寫嘗試次數那一行。）
 
-台服（區域最高進度往上才發，不發 best）：
+台服六王起前三名擊殺（只有第一名寫台服首殺）：
 
 ```text
-台服 Fortune 擊殺 四王 Vashnik the Malignant（4/8） 台服首殺
-嘗試次數 7
+台服 Fortune 擊殺 六王 The Twin Fangs（6/8） 台服首殺
+嘗試次數 20
+```
+
+```text
+台服 月刃 擊殺 六王 The Twin Fangs（6/8）
+嘗試次數 15
+```
+
+台服尾王領先 best：
+
+```text
+!best
+台服 Fortune 《烈毒之淵》Mythic
+Ula'tek 剩餘 70%
+嘗試次數 22
 ```
 
 ---

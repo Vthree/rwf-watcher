@@ -12,6 +12,7 @@ from models import (
     GUILDS,
     LAST_BOSS_SLUG,
     RAID_SLUG,
+    TOTAL_BOSSES,
     BestProgress,
     Boss,
     Guild,
@@ -103,8 +104,24 @@ class RioClient:
         rows = data.get("raidRankings") or []
         return rows if isinstance(rows, list) else []
 
-    def fetch_tw_snapshot(self) -> TwSnapshot:
-        return snapshot_from_rankings(self.region_rankings("tw", limit=50))
+    def fetch_tw_snapshot(self, bosses: tuple[Boss, ...] | None = None) -> TwSnapshot:
+        bosses = bosses or boss_list()
+        snap = snapshot_from_rankings(self.region_rankings("tw", limit=50), bosses)
+        ulatek = boss_by_slug(bosses, LAST_BOSS_SLUG)
+        if ulatek is None:
+            return snap
+        for g in snap.guilds.values():
+            if LAST_BOSS_SLUG in {s.lower() for s in g.killed}:
+                g.best = None
+                continue
+            if len(g.killed) < TOTAL_BOSSES - 1:
+                continue
+            try:
+                bp = self.live_boss_progress(g.id, LAST_BOSS_SLUG)
+                g.best = parse_boss_progress(bp, ulatek, None)
+            except RioError as e:
+                logger.warning("%s tw ulatek live failed: %s", g.name, e)
+        return snap
 
     def guild_rankings(self) -> dict[int, dict]:
         ids = ",".join(str(g.id) for g in GUILDS)

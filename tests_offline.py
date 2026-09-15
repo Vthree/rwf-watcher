@@ -18,11 +18,13 @@ from models import (
 from notify import should_send
 from rio import parse_boss_progress
 from tw import (
+    TwBestEvent,
     TwGuildSnap,
     TwKillEvent,
     TwSnapshot,
     coalesce_tw,
     diff_tw,
+    format_tw_best,
     format_tw_kill,
     guild_snap_from_ranking,
     snapshot_from_rankings,
@@ -490,16 +492,20 @@ def main() -> None:
         assert load_dests(p)["discord"] == ["111"]
 
     vashnik = [b for b in BOSSES if b.slug == "vashnik-the-malignant"][0]
-    line = format_tw_kill(TwKillEvent("Fortune", vashnik, 4, 7))
+    line = format_tw_kill(TwKillEvent("Fortune", vashnik, 4, 7, tw_first=True))
     assert line == (
         "台服 Fortune 擊殺 四王 Vashnik the Malignant（4/8） 台服首殺\n嘗試次數 7"
     )
     last_b = [b for b in BOSSES if b.slug == "ulatek"][0]
-    assert format_tw_kill(TwKillEvent("Fortune", last_b, 8, None)) == (
+    assert format_tw_kill(TwKillEvent("Fortune", last_b, 8, None, tw_first=True)) == (
         "台服 Fortune 擊殺 尾王 Ula'tek（8/8） 台服首殺"
     )
+    twin = [b for b in BOSSES if b.slug == "the-twin-fangs"][0]
+    second = format_tw_kill(TwKillEvent("月刃", twin, 6, 12, tw_first=False))
+    assert second == "台服 月刃 擊殺 六王 The Twin Fangs（6/8）\n嘗試次數 12"
+    assert "台服首殺" not in second
 
-    def _tw_g(gid, name, killed, pulls=None, first=None):
+    def _tw_g(gid, name, killed, pulls=None, first=None, best=None):
         return TwGuildSnap(
             id=gid,
             name=name,
@@ -507,66 +513,159 @@ def main() -> None:
             killed=tuple(killed),
             pulls=pulls or {},
             first_defeated=first or {},
+            best=best,
         )
 
-    three = [s for s, _ in FALLBACK_BOSSES[:3]]
-    four = [s for s, _ in FALLBACK_BOSSES[:4]]
-    prev_tw = TwSnapshot(
-        region_max=3,
-        guilds={1: _tw_g(1, "Fortune", three, {"vashnik-the-malignant": 7})},
-    )
-    curr_tw = TwSnapshot(
-        region_max=4,
+    five = [s for s, _ in FALLBACK_BOSSES[:5]]
+    six = [s for s, _ in FALLBACK_BOSSES[:6]]
+    seven = [s for s, _ in FALLBACK_BOSSES[:7]]
+    twin_slug = "the-twin-fangs"
+    prev_five = TwSnapshot(region_max=5, guilds={1: _tw_g(1, "Fortune", five)})
+    curr_six = TwSnapshot(
+        region_max=6,
         guilds={
             1: _tw_g(
                 1,
                 "Fortune",
-                four,
-                {"vashnik-the-malignant": 7},
-                {"vashnik-the-malignant": "2026-08-31T12:00:00Z"},
+                six,
+                {twin_slug: 20},
+                {twin_slug: "2026-09-01T12:00:00Z"},
             ),
-            2: _tw_g(2, "月刃", [s for s, _ in FALLBACK_BOSSES[:2]]),
+            2: _tw_g(2, "月刃", five),
         },
     )
-    tick = diff_tw(None, curr_tw, BOSSES)
+    tick = diff_tw(None, curr_six, BOSSES)
     assert tick.silent is True
-    tick = diff_tw(prev_tw, prev_tw, BOSSES)
-    assert tick.silent is True
-    tick = diff_tw(prev_tw, curr_tw, BOSSES)
+    tick = diff_tw(prev_five, curr_six, BOSSES)
     assert tick.silent is False
-    assert len(tick.events) == 1
-    assert tick.events[0].guild_name == "Fortune"
-    assert tick.events[0].killed_count == 4
-    assert tick.events[0].boss.slug == "vashnik-the-malignant"
+    assert len(tick.kills) == 1
+    assert tick.kills[0].guild_name == "Fortune"
+    assert tick.kills[0].tw_first is True
+    assert tick.kills[0].boss.slug == twin_slug
     msg = tick.message()
-    assert msg and msg.startswith("台服 Fortune 擊殺 四王")
-    assert "台服首殺" in msg
-    assert "嘗試次數 7" in msg
-    assert "!best" not in msg
+    assert msg and "六王" in msg and "台服首殺" in msg
+    assert "嘗試次數 20" in msg
 
-    still_3 = TwSnapshot(
-        region_max=3,
-        guilds={
-            1: _tw_g(1, "Fortune", three),
-            2: _tw_g(2, "月刃", three),
-        },
+    # 五王 (index 5) new kill is silent
+    four = [s for s, _ in FALLBACK_BOSSES[:4]]
+    tick = diff_tw(
+        TwSnapshot(region_max=4, guilds={1: _tw_g(1, "Fortune", four)}),
+        TwSnapshot(region_max=5, guilds={1: _tw_g(1, "Fortune", five)}),
+        BOSSES,
     )
-    tick = diff_tw(prev_tw, still_3, BOSSES)
     assert tick.silent is True
 
-    new_guild_4 = TwSnapshot(
-        region_max=4,
-        guilds={9: _tw_g(9, "NewGuild", four, {four[-1]: 11})},
+    # 2nd TW kill of 六王: notify, no 台服首殺
+    curr_second = TwSnapshot(
+        region_max=6,
+        guilds={
+            1: _tw_g(1, "Fortune", six, first={twin_slug: "2026-09-01T12:00:00Z"}),
+            2: _tw_g(
+                2,
+                "月刃",
+                six,
+                {twin_slug: 15},
+                {twin_slug: "2026-09-01T13:00:00Z"},
+            ),
+        },
     )
-    tick = diff_tw(prev_tw, new_guild_4, BOSSES)
-    assert len(tick.events) == 1
-    assert tick.events[0].killed_count == 4
-    assert tick.events[0].guild_name == "NewGuild"
+    tick = diff_tw(curr_six, curr_second, BOSSES)
+    assert len(tick.kills) == 1
+    assert tick.kills[0].guild_name == "月刃"
+    assert tick.kills[0].tw_first is False
+    assert "台服首殺" not in (tick.message() or "")
 
-    stored_tw = coalesce_tw(prev_tw, still_3)
-    assert stored_tw.region_max == 3
-    stored_tw = coalesce_tw(prev_tw, curr_tw)
-    assert stored_tw.region_max == 4
+    # 4th killer of 六王 is silent
+    curr_four = TwSnapshot(
+        region_max=6,
+        guilds={
+            1: _tw_g(1, "A", six, first={twin_slug: "2026-09-01T10:00:00Z"}),
+            2: _tw_g(2, "B", six, first={twin_slug: "2026-09-01T11:00:00Z"}),
+            3: _tw_g(3, "C", six, first={twin_slug: "2026-09-01T12:00:00Z"}),
+            4: _tw_g(4, "D", six, first={twin_slug: "2026-09-01T14:00:00Z"}),
+        },
+    )
+    prev_three = TwSnapshot(
+        region_max=6,
+        guilds={
+            1: _tw_g(1, "A", six, first={twin_slug: "2026-09-01T10:00:00Z"}),
+            2: _tw_g(2, "B", six, first={twin_slug: "2026-09-01T11:00:00Z"}),
+            3: _tw_g(3, "C", six, first={twin_slug: "2026-09-01T12:00:00Z"}),
+        },
+    )
+    tick = diff_tw(prev_three, curr_four, BOSSES)
+    assert tick.kills == []
+    assert tick.silent is True
+
+    ulatek_best = _best(slug="ulatek", name="Ula'tek", remaining=80.0, display="80%", pulls=10)
+    better = _best(slug="ulatek", name="Ula'tek", remaining=70.0, display="70%", pulls=22)
+    on_last = _tw_g(1, "Fortune", seven, best=ulatek_best)
+    yue_last = _tw_g(2, "月刃", seven, best=None)
+    curr_lead = TwSnapshot(
+        region_max=7,
+        guilds={1: _tw_g(1, "Fortune", seven, best=better), 2: yue_last},
+    )
+    prev_last = TwSnapshot(
+        region_max=7,
+        guilds={1: on_last, 2: yue_last},
+    )
+    tick = diff_tw(prev_last, curr_lead, BOSSES)
+    assert tick.kills == []
+    assert len(tick.bests) == 1
+    assert tick.bests[0].guild_name == "Fortune"
+    bmsg = tick.message()
+    assert bmsg and bmsg.startswith("!best")
+    assert "台服 Fortune" in bmsg
+    assert "剩餘 70%" in bmsg
+    behind = _best(slug="ulatek", name="Ula'tek", remaining=75.0, display="75%", pulls=8)
+    curr_behind = TwSnapshot(
+        region_max=7,
+        guilds={
+            1: _tw_g(1, "Fortune", seven, best=better),
+            2: _tw_g(2, "月刃", seven, best=behind),
+        },
+    )
+    tick = diff_tw(curr_lead, curr_behind, BOSSES)
+    assert tick.bests == []
+    assert tick.silent is True
+
+    all8 = [s for s, _ in FALLBACK_BOSSES]
+    prev_7 = TwSnapshot(region_max=7, guilds={1: _tw_g(1, "Fortune", seven)})
+    curr_8 = TwSnapshot(
+        region_max=8,
+        guilds={
+            1: _tw_g(
+                1,
+                "Fortune",
+                all8,
+                {"ulatek": 40},
+                {"ulatek": "2026-09-01T18:00:00Z"},
+            )
+        },
+    )
+    tick = diff_tw(prev_7, curr_8, BOSSES)
+    assert tick.kills[0].tw_first is True
+    assert "台服首殺" in (tick.message() or "")
+    curr_8b = TwSnapshot(
+        region_max=8,
+        guilds={
+            1: _tw_g(1, "Fortune", all8, first={"ulatek": "2026-09-01T18:00:00Z"}),
+            2: _tw_g(
+                2,
+                "月刃",
+                all8,
+                {"ulatek": 55},
+                {"ulatek": "2026-09-01T19:00:00Z"},
+            ),
+        },
+    )
+    tick = diff_tw(curr_8, curr_8b, BOSSES)
+    assert tick.kills[0].guild_name == "月刃"
+    assert tick.kills[0].tw_first is False
+    assert "台服首殺" not in (tick.message() or "")
+
+    stored_tw = coalesce_tw(prev_five, curr_six)
+    assert stored_tw.region_max == 6
 
     parsed = guild_snap_from_ranking(
         {
@@ -579,6 +678,9 @@ def main() -> None:
     )
     assert parsed is not None and parsed.name == "Fortune" and parsed.killed == ("nekzali-the-soulcoiler",)
     assert tw_region_max(snapshot_from_rankings([])) == 0
+    best_txt = format_tw_best(TwBestEvent("Fortune", ulatek_best))
+    assert best_txt.startswith("!best\n台服 Fortune")
+    assert "Ula'tek" in best_txt
 
     print("ALL_UNIT_TESTS_PASSED")
 

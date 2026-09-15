@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.0 — 2026-09-01
+
+- TW from **六王**: notify the first 3 kills of that boss. Only place 1 gets `台服首殺`.
+- TW **尾王**: also notify TW-lead Ula'tek best `%` (`!best`). Hidden / behind-the-lead personal bests stay silent.
+- Bosses 1–5: no kill spam (those races are over).
+
 ## 1.3.0 — 2026-09-01
 
 - World RWF (Echo / Liquid / Method) polling **off**. TW feed only.

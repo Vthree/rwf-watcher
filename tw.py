@@ -1,4 +1,7 @@
-"""Taiwan region feed: notify only when TW overall N/8 increases. No bests.
+"""Taiwan region feed.
+
+From 六王 onward: notify the first 3 TW kills of that boss.
+Only place 1 gets 台服首殺. Last boss also notifies TW-lead best %.
 
 Independent of Echo/Liquid/Method RWF. No hardcoded guilds. LINE omitted.
 """
@@ -7,7 +10,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from models import LAST_BOSS_SLUG, TOTAL_BOSSES, Boss, boss_by_slug
+from models import LAST_BOSS_SLUG, RAID_NAME_ZH, TOTAL_BOSSES, BestProgress, Boss, boss_by_slug
+from watcher import (
+    _classify_best,
+    coalesce_best,
+    format_remaining,
+    is_new_best,
+    overall_confirms,
+    ulatek_progress,
+)
 
 _ZH_ORDINAL = {
     1: "一",
@@ -20,6 +31,9 @@ _ZH_ORDINAL = {
     8: "八",
 }
 
+TW_TOP_FROM_INDEX = 6
+TW_TOP_SLOTS = 3
+
 
 @dataclass
 class TwGuildSnap:
@@ -29,6 +43,7 @@ class TwGuildSnap:
     killed: tuple[str, ...]
     pulls: dict[str, int] = field(default_factory=dict)
     first_defeated: dict[str, str] = field(default_factory=dict)
+    best: BestProgress | None = None
 
 
 @dataclass
@@ -43,17 +58,51 @@ class TwKillEvent:
     boss: Boss
     killed_count: int
     pulls: int | None = None
+    tw_first: bool = False
+
+
+@dataclass(frozen=True)
+class TwBestEvent:
+    guild_name: str
+    best: BestProgress
 
 
 @dataclass
 class TwTick:
-    events: list[TwKillEvent]
+    kills: list[TwKillEvent]
+    bests: list[TwBestEvent]
     silent: bool
 
+    @property
+    def events(self) -> list[TwKillEvent]:
+        return self.kills
+
     def message(self) -> str | None:
-        if not self.events:
+        if not self.kills and not self.bests:
             return None
-        blocks = [format_tw_kill(ev) for ev in self.events]
+        blocks: list[str] = []
+        kills_by: dict[str, list[TwKillEvent]] = {}
+        for k in self.kills:
+            kills_by.setdefault(k.guild_name, []).append(k)
+        best_by = {b.guild_name: b for b in self.bests}
+        names: list[str] = []
+        for k in self.kills:
+            if k.guild_name not in names:
+                names.append(k.guild_name)
+        for b in self.bests:
+            if b.guild_name not in names:
+                names.append(b.guild_name)
+        for name in names:
+            lines: list[str] = []
+            for k in kills_by.get(name, []):
+                lines.append(format_tw_kill(k))
+            best = best_by.get(name)
+            if best:
+                if lines:
+                    lines.append("")
+                lines.extend(format_tw_best(best).splitlines())
+            if lines:
+                blocks.append("\n".join(lines))
         text = "\n\n".join(blocks).strip()
         if not text or text.strip() == "[SILENT]":
             return None
@@ -66,7 +115,56 @@ def tw_region_max(snapshot: TwSnapshot) -> int:
     return max(len(g.killed) for g in snapshot.guilds.values())
 
 
-def guild_snap_from_ranking(row: dict) -> TwGuildSnap | None:
+def _has_kill(g: TwGuildSnap, slug: str) -> bool:
+    return slug.lower() in {s.lower() for s in g.killed}
+
+
+def _killers_ordered(snapshot: TwSnapshot, slug: str) -> list[TwGuildSnap]:
+    rows = [g for g in snapshot.guilds.values() if _has_kill(g, slug)]
+    rows.sort(
+        key=lambda g: (
+            g.first_defeated.get(slug) or g.first_defeated.get(slug.lower()) or "\uffff",
+            g.name,
+        )
+    )
+    return rows
+
+
+def best_from_pulled(item: dict, boss: Boss) -> BestProgress | None:
+    slug = ((item or {}).get("slug") or "").lower()
+    if slug != boss.slug.lower():
+        return None
+    if (item or {}).get("isDefeated"):
+        return None
+    display = item.get("progressDisplay")
+    if display is None:
+        display = item.get("progress_display")
+    pulls = item.get("numPulls")
+    if pulls is None:
+        pulls = item.get("pullCount") or item.get("pull_count")
+    overall = item.get("bestPercent")
+    if not isinstance(overall, (int, float)):
+        overall = None
+    api_phase = item.get("phase")
+    if not isinstance(api_phase, (int, float)):
+        api_phase = None
+    api_label = item.get("phaseLabel") or item.get("phase_label")
+    if not isinstance(api_label, str) or not api_label.strip():
+        api_label = None
+    return _classify_best(
+        boss_slug=boss.slug,
+        boss_name=boss.name,
+        display=display if isinstance(display, str) else None,
+        error=item.get("error"),
+        privacy=None,
+        pull_count=int(pulls) if isinstance(pulls, (int, float)) else None,
+        overall=float(overall) if overall is not None else None,
+        api_phase=float(api_phase) if api_phase is not None else None,
+        api_phase_label=api_label,
+    )
+
+
+def guild_snap_from_ranking(row: dict, bosses: tuple[Boss, ...] | None = None) -> TwGuildSnap | None:
     guild = (row or {}).get("guild") or {}
     gid = guild.get("id")
     if gid is None:
@@ -84,11 +182,18 @@ def guild_snap_from_ranking(row: dict) -> TwGuildSnap | None:
         if fd:
             first[slug] = str(fd)
     pulls: dict[str, int] = {}
+    best: BestProgress | None = None
+    ulatek = boss_by_slug(bosses or (), LAST_BOSS_SLUG) if bosses else None
+    killed_set = {s.lower() for s in killed}
     for item in row.get("encountersPulled") or []:
         slug = (item or {}).get("slug")
         n = (item or {}).get("numPulls")
         if slug and isinstance(n, (int, float)):
             pulls[slug] = int(n)
+        if ulatek and LAST_BOSS_SLUG not in killed_set:
+            parsed = best_from_pulled(item or {}, ulatek)
+            if parsed is not None:
+                best = parsed
     return TwGuildSnap(
         id=int(gid),
         name=str(guild.get("name") or gid),
@@ -96,13 +201,17 @@ def guild_snap_from_ranking(row: dict) -> TwGuildSnap | None:
         killed=tuple(killed),
         pulls=pulls,
         first_defeated=first,
+        best=best,
     )
 
 
-def snapshot_from_rankings(rows: list[dict]) -> TwSnapshot:
+def snapshot_from_rankings(
+    rows: list[dict],
+    bosses: tuple[Boss, ...] | None = None,
+) -> TwSnapshot:
     guilds: dict[int, TwGuildSnap] = {}
     for row in rows or []:
-        snap = guild_snap_from_ranking(row)
+        snap = guild_snap_from_ranking(row, bosses)
         if snap is None:
             continue
         guilds[snap.id] = snap
@@ -111,59 +220,91 @@ def snapshot_from_rankings(rows: list[dict]) -> TwSnapshot:
     return out
 
 
+def tw_lead_ulatek(snapshot: TwSnapshot) -> BestProgress | None:
+    lead: BestProgress | None = None
+    for gs in snapshot.guilds.values():
+        cand = ulatek_progress(gs.best)
+        if is_new_best(lead, cand):
+            lead = cand
+    return lead
+
+
+def _diff_tw_best(prev: TwSnapshot, curr: TwSnapshot) -> list[TwBestEvent]:
+    prev_lead = tw_lead_ulatek(prev)
+    candidates: list[TwBestEvent] = []
+    for g in curr.guilds.values():
+        if _has_kill(g, LAST_BOSS_SLUG):
+            continue
+        cand = ulatek_progress(g.best)
+        if cand and is_new_best(prev_lead, cand) and overall_confirms(prev_lead, cand):
+            candidates.append(TwBestEvent(g.name, cand))
+    if not candidates:
+        return []
+    winner = candidates[0]
+    for ev in candidates[1:]:
+        if is_new_best(winner.best, ev.best):
+            winner = ev
+    return [winner]
+
+
 def diff_tw(
     prev: TwSnapshot | None,
     curr: TwSnapshot,
     bosses: tuple[Boss, ...],
 ) -> TwTick:
     if prev is None:
-        return TwTick([], silent=True)
+        return TwTick([], [], silent=True)
 
-    prev_max = prev.region_max
-    curr_max = tw_region_max(curr)
-    if curr_max <= prev_max:
-        return TwTick([], silent=True)
-
-    order = {b.slug.lower(): i for i, b in enumerate(bosses)}
-    events: list[TwKillEvent] = []
-    for g in curr.guilds.values():
-        n = len(g.killed)
-        if n <= prev_max:
+    kills: list[TwKillEvent] = []
+    for boss in bosses:
+        if boss.index < TW_TOP_FROM_INDEX:
             continue
-        old = prev.guilds.get(g.id)
-        old_n = len(old.killed) if old else 0
-        emit_from = max(old_n, prev_max)
-        n_emit = n - emit_from
-        if n_emit <= 0:
-            continue
-        old_killed = {s.lower() for s in (old.killed if old else ())}
-        new_slugs = [s for s in g.killed if s.lower() not in old_killed]
-        if not new_slugs:
-            continue
-        new_slugs.sort(key=lambda s: g.first_defeated.get(s) or "")
-        picked = new_slugs[-n_emit:]
-        picked.sort(key=lambda s: order.get(s.lower(), 99))
-        for i, slug in enumerate(picked):
-            count_at = emit_from + i + 1
-            boss = boss_by_slug(bosses, slug)
-            if boss is None:
-                boss = Boss(slug=slug, name=slug, index=count_at)
-            pulls = g.pulls.get(slug)
-            events.append(TwKillEvent(g.name, boss, count_at, pulls))
-    events.sort(
+        prev_ids = {g.id for g in prev.guilds.values() if _has_kill(g, boss.slug)}
+        ordered = _killers_ordered(curr, boss.slug)
+        for place, g in enumerate(ordered, start=1):
+            if g.id in prev_ids:
+                continue
+            if place > TW_TOP_SLOTS:
+                continue
+            pulls = g.pulls.get(boss.slug)
+            if pulls is None:
+                pulls = g.pulls.get(boss.slug.lower())
+            kills.append(
+                TwKillEvent(
+                    guild_name=g.name,
+                    boss=boss,
+                    killed_count=len(g.killed),
+                    pulls=pulls,
+                    tw_first=(place == 1),
+                )
+            )
+    kills.sort(
         key=lambda e: (
-            e.killed_count,
-            order.get(e.boss.slug.lower(), 99),
+            e.boss.index,
+            0 if e.tw_first else 1,
             e.guild_name,
         )
     )
-    return TwTick(events, silent=not events)
+    bests = _diff_tw_best(prev, curr)
+    return TwTick(kills, bests, silent=not kills and not bests)
 
 
 def coalesce_tw(prev: TwSnapshot | None, curr: TwSnapshot) -> TwSnapshot:
     if prev is None:
         return TwSnapshot(region_max=tw_region_max(curr), guilds=dict(curr.guilds))
-    guilds = dict(curr.guilds) if curr.guilds else dict(prev.guilds)
+    guilds: dict[int, TwGuildSnap] = {}
+    for gid, new in curr.guilds.items():
+        old = prev.guilds.get(gid)
+        best = coalesce_best(old.best if old else None, new.best)
+        guilds[gid] = TwGuildSnap(
+            id=new.id,
+            name=new.name,
+            realm=new.realm,
+            killed=new.killed,
+            pulls=new.pulls or (old.pulls if old else {}),
+            first_defeated=new.first_defeated or (old.first_defeated if old else {}),
+            best=best,
+        )
     region_max = max(prev.region_max, tw_region_max(curr))
     return TwSnapshot(region_max=region_max, guilds=guilds)
 
@@ -172,13 +313,59 @@ def format_tw_kill(event: TwKillEvent) -> str:
     b = event.boss
     frac = f"（{event.killed_count}/{TOTAL_BOSSES}）"
     if b.slug.lower() == LAST_BOSS_SLUG:
-        line = f"台服 {event.guild_name} 擊殺 尾王 {b.name}{frac} 台服首殺"
+        line = f"台服 {event.guild_name} 擊殺 尾王 {b.name}{frac}"
     else:
         ordinal = _ZH_ORDINAL.get(b.index, str(b.index))
-        line = f"台服 {event.guild_name} 擊殺 {ordinal}王 {b.name}{frac} 台服首殺"
+        line = f"台服 {event.guild_name} 擊殺 {ordinal}王 {b.name}{frac}"
+    if event.tw_first:
+        line += " 台服首殺"
     if event.pulls is not None:
         line += f"\n嘗試次數 {event.pulls}"
     return line
+
+
+def format_tw_best(event: TwBestEvent) -> str:
+    best = event.best
+    lines = [
+        "!best",
+        f"台服 {event.guild_name} 《{RAID_NAME_ZH}》Mythic",
+        f"{best.boss_name} {format_remaining(best)}",
+    ]
+    if best.pulls is not None:
+        lines.append(f"嘗試次數 {best.pulls}")
+    return "\n".join(lines)
+
+
+def _best_to_json(best: BestProgress | None) -> dict | None:
+    if best is None:
+        return None
+    return {
+        "boss_slug": best.boss_slug,
+        "boss_name": best.boss_name,
+        "kind": best.kind,
+        "display": best.display,
+        "remaining": best.remaining,
+        "phase": best.phase,
+        "pulls": best.pulls,
+        "overall": best.overall,
+        "phase_label": best.phase_label,
+    }
+
+
+def _best_from_json(raw: dict | None) -> BestProgress | None:
+    if not raw:
+        return None
+    return BestProgress(
+        boss_slug=raw.get("boss_slug") or "",
+        boss_name=raw.get("boss_name") or "",
+        kind=raw.get("kind") or "none",
+        display=raw.get("display"),
+        remaining=raw.get("remaining"),
+        phase=raw.get("phase"),
+        pulls=raw.get("pulls"),
+        overall=raw.get("overall"),
+        phase_label=raw.get("phase_label"),
+    )
 
 
 def tw_snapshot_to_json(snapshot: TwSnapshot) -> dict:
@@ -191,6 +378,7 @@ def tw_snapshot_to_json(snapshot: TwSnapshot) -> dict:
             "killed": list(gs.killed),
             "pulls": gs.pulls,
             "first_defeated": gs.first_defeated,
+            "best": _best_to_json(gs.best),
         }
     return {"region_max": snapshot.region_max, "guilds": guilds}
 
@@ -213,6 +401,7 @@ def tw_snapshot_from_json(data: dict | None) -> TwSnapshot | None:
             killed=tuple(raw.get("killed") or ()),
             pulls=pulls,
             first_defeated=first,
+            best=_best_from_json(raw.get("best")),
         )
     region_max = data.get("region_max")
     if not isinstance(region_max, int):

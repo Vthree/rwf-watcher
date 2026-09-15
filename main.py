@@ -1,6 +1,7 @@
 """
-TW sidecar: poll Raider.io Taiwan rankings, notify Telegram + Discord on
-region-first kills. World RWF (Echo / Liquid / Method) is not polled.
+TW sidecar: poll Raider.io Taiwan rankings. From 六王, notify top-3 kills
+(台服首殺 only for place 1). Last-boss also notifies TW-lead best %.
+World RWF (Echo / Liquid / Method) is not polled.
 
 Not part of grok-bot-core. No LLM. LINE is intentionally omitted.
 """
@@ -30,7 +31,7 @@ logger = logging.getLogger("rwf")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 
 def _int_env(name: str, default: int) -> int:
@@ -84,7 +85,7 @@ def main() -> int:
 
         while True:
             try:
-                tw_curr = client.fetch_tw_snapshot()
+                tw_curr = client.fetch_tw_snapshot(bosses)
                 tw_tick = diff_tw(tw_prev, tw_curr, bosses)
                 tw_msg = tw_tick.message()
                 if tw_tick.silent or not tw_msg:

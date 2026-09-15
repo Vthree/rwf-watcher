@@ -13,7 +13,7 @@ Toggle Taiwan overall-progress kills from the grok bot already in that chat:
 
 Every 30 seconds it polls the [Raider.io API](https://raider.io) `region=tw` and sends **only to channels that are on**.
 
-Taiwan feed: **no named guilds**. Notify only when TW Mythic **overall max N/8** goes up (台服首殺). No best / HP lines. First poll seeds and stays silent.
+Taiwan feed: **no named guilds**. From **六王**, notify the first 3 kills of that boss (`台服首殺` only for place 1). Last boss also posts TW-lead best `%`. First poll seeds and stays silent.
 
 Quiet otherwise. `[SILENT]` is never posted to chat.
 
@@ -27,7 +27,7 @@ Quiet otherwise. `[SILENT]` is never posted to chat.
 | World first | Last boss Ula'tek may say `世界首殺` only if previous state had no world ulatek kill. |
 | Fingerprint | Kills + best display. **No timestamps.** |
 | Copy | Best starts with `!best`. Kill is `{guild} 擊殺 尾王 …（8/8）` then `嘗試次數 N`. `pulls` → **嘗試次數** (never 「拉」). No URL. |
-| Taiwan | Rankings `region=tw`. Notify when max defeated count increases. No best. Copy: `台服 {guild} 擊殺 四王 …（4/8） 台服首殺`. |
+| Taiwan | Rankings `region=tw`. From 六王: first 3 kills (`台服首殺` on place 1 only). 尾王: + TW-lead `!best`. |
 
 ## Env
 
