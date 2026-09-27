@@ -334,6 +334,7 @@ def diff_tw(
     prev: TwSnapshot | None,
     curr: TwSnapshot,
     bosses: tuple[Boss, ...],
+    best_enabled: bool = False,
 ) -> TwTick:
     if prev is None:
         return TwTick([], [], silent=True)
@@ -368,7 +369,7 @@ def diff_tw(
             e.guild_name,
         )
     )
-    bests = _diff_tw_best(prev, curr)
+    bests = _diff_tw_best(prev, curr) if best_enabled else []
     return TwTick(kills, bests, silent=not kills and not bests)
 
 

@@ -32,7 +32,7 @@ logger = logging.getLogger("rwf")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-VERSION = "1.6.1"
+VERSION = "1.6.2"
 
 
 def _int_env(name: str, default: int) -> int:
@@ -53,6 +53,7 @@ def main() -> int:
     tg_token = env_secret("TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN")
     dc_token = env_secret("DISCORD_BOT_TOKEN", "DISCORD_TOKEN")
     dry_run = env_secret("RWF_DRY_RUN").lower() in {"1", "true", "yes", "on"}
+    tw_best = env_secret("TW_BEST_ENABLED").lower() in {"1", "true", "yes", "on"}
     once = env_secret("RWF_ONCE").lower() in {"1", "true", "yes", "on"}
     interval = max(30, _int_env("RWF_POLL_SECONDS", 30))
 
@@ -67,13 +68,14 @@ def main() -> int:
     start_control_server()
     tw_dests = load_dests(feed="tw")
     logger.info(
-        "rwf-watcher %s raid=%s poll=%ss dry_run=%s world_rwf=off wcl_v2=%s wcl_v1=%s tw_tg=%s tw_dc=%s",
+        "rwf-watcher %s raid=%s poll=%ss dry_run=%s world_rwf=off wcl_v2=%s wcl_v1=%s tw_best=%s tw_tg=%s tw_dc=%s",
         VERSION,
         RAID_SLUG,
         interval,
         dry_run,
         bool(wcl_id and wcl_sec),
         bool(wcl_key),
+        tw_best,
         tw_dests.get("telegram") or [],
         tw_dests.get("discord") or [],
     )
@@ -117,7 +119,7 @@ def main() -> int:
                 if rio_snap is None and wcl_snap is None and race_snap is None:
                     raise RuntimeError("no TW snapshot from RIO or WCL")
                 tw_curr = merge_tw_snapshots(merge_tw_snapshots(rio_snap, wcl_snap), race_snap)
-                tw_tick = diff_tw(tw_prev, tw_curr, bosses)
+                tw_tick = diff_tw(tw_prev, tw_curr, bosses, best_enabled=tw_best)
                 tw_msg = tw_tick.message()
                 if tw_tick.silent or not tw_msg:
                     logger.info(

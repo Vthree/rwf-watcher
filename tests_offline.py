@@ -614,6 +614,9 @@ def main() -> None:
     )
     tick = diff_tw(prev_last, curr_lead, BOSSES)
     assert tick.kills == []
+    assert tick.bests == []
+    tick = diff_tw(prev_last, curr_lead, BOSSES, best_enabled=True)
+    assert tick.kills == []
     assert len(tick.bests) == 1
     assert tick.bests[0].guild_name == "Fortune"
     bmsg = tick.message()
@@ -628,7 +631,7 @@ def main() -> None:
             2: _tw_g(2, "月刃", seven, best=behind),
         },
     )
-    tick = diff_tw(curr_lead, curr_behind, BOSSES)
+    tick = diff_tw(curr_lead, curr_behind, BOSSES, best_enabled=True)
     assert tick.bests == []
     assert tick.silent is True
 

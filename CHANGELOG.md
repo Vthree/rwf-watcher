@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.2 — 2026-09-15
+
+- Pause TW last-boss `!best` notices. Kills unchanged. Resume with `TW_BEST_ENABLED=1`.
+
 ## 1.6.1 — 2026-09-15
 
 - Always poll WCL v1 rankings every 30s for kills. v2 progressRace stays cached (~8 min) for best % / pulls so a 六王 kill is not delayed until the race cache refreshes.
